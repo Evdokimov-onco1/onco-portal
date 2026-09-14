@@ -73,6 +73,16 @@
 #oncoResidencyPortal .orp-hidden{display:none!important}
 #oncoResidencyPortal .orp-source{font-size:14px;color:#6b7680;margin-top:10px}
 #oncoResidencyPortal .orp-source a{color:#3f6f8f}
+#oncoResidencyPortal .orp-subkicker{font-size:14px;font-weight:700;color:#3f4f5c;margin:8px 0 2px}
+#oncoResidencyPortal .orp-case{border:1px solid #e3e9ee;border-radius:12px;padding:12px 14px;margin:10px 0;background:#fff}
+#oncoResidencyPortal .orp-case-title{font-weight:700;margin-bottom:4px}
+#oncoResidencyPortal .orp-case-q{color:#3f4f5c;font-size:15px}
+#oncoResidencyPortal .orp-btn-sm{padding:6px 11px;font-size:14px}
+#oncoResidencyPortal .orp-actions-top{margin:4px 0 8px}
+#oncoResidencyPortal .orp-checklist li{margin-bottom:4px}
+#oncoResidencyPortal .orp-cal td.orp-num{white-space:nowrap;font-variant-numeric:tabular-nums}
+#oncoResidencyPortal .orp-grow-right{margin-left:auto}
+#oncoResidencyPortal a.orp-minichip{text-decoration:none;cursor:pointer}
 @media (max-width:900px){
   #oncoResidencyPortal .orp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   #oncoResidencyPortal .orp-h1{font-size:34px}

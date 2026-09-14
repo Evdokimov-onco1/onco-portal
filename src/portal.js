@@ -15,13 +15,19 @@
   if (!root) return;
 
   var DEFAULT_DATA_URL = 'https://cdn.jsdelivr.net/gh/Evdokimov-onco1/onco-portal@main/data/orp-data.json';
+  var DEFAULT_MODULES_URL = 'https://cdn.jsdelivr.net/gh/Evdokimov-onco1/onco-portal@main/modules/';
 
   var CFG = {
     year: String(root.getAttribute('data-year') || 'all'),
     dataUrl: root.getAttribute('data-data-url') || DEFAULT_DATA_URL,
+    modulesUrl: root.getAttribute('data-modules-url') || DEFAULT_MODULES_URL,
     resultsUrl: root.getAttribute('data-results-url') || '',
-    home: root.getAttribute('data-home') || ''
+    home: root.getAttribute('data-home') || '',
+    yearUrls: { '1': root.getAttribute('data-year-1-url') || '', '2': root.getAttribute('data-year-2-url') || '' }
   };
+
+  var fileUrl = function (name) { return name ? CFG.modulesUrl + encodeURIComponent(name) : ''; };
+  var withParam = function (base, key, val) { return base + (base.indexOf('?') > -1 ? '&' : '?') + key + '=' + encodeURIComponent(val); };
 
   /* ---------- утилиты ---------- */
 
@@ -154,6 +160,7 @@
           '<button type="button" class="orp-navbtn" data-panel="vp">Виртуальные пациенты</button>' +
           '<button type="button" class="orp-navbtn" data-panel="osce">OSCE</button>' +
           '<button type="button" class="orp-navbtn" data-panel="tb">Tumor Board</button>' +
+          '<button type="button" class="orp-navbtn" data-panel="calendar">Календарь</button>' +
         '</nav>' +
 
         '<section class="orp-panel is-active" data-panel-id="modules">' +
@@ -172,6 +179,7 @@
               '<option value="books_guides">Учебники и руководства</option>' +
               '<option value="clinical_tools">Клинические инструменты</option>' +
               '<option value="simulators">Внешние симуляторы</option>' +
+              '<option value="module_guidelines">Рекомендации из модулей (РФ и международные)</option>' +
             '</select>' +
             '<input class="orp-input orp-grow" id="orpLibSearch" type="search" placeholder="Поиск в библиотеке">' +
           '</div>' +
@@ -207,6 +215,13 @@
           '<p class="orp-lead orp-lead-sm">Мультидисциплинарные кейсы с поэтапным раскрытием информации.</p>' +
           '<div class="orp-grid" id="orpTbGrid"></div>' +
           '<div id="orpTbRunner"></div>' +
+        '</section>' +
+
+        '<section class="orp-panel" data-panel-id="calendar">' +
+          '<div class="orp-sectionhead"><h2 class="orp-h2">Календарный план 2026/2027</h2><span class="orp-muted" id="orpCalCount"></span></div>' +
+          '<p class="orp-lead orp-lead-sm">Лекции и семинары в хронологическом порядке. Даты предварительные, по проекту кафедры.</p>' +
+          '<div class="orp-controls" id="orpCalControls"></div>' +
+          '<div id="orpCalBox"></div>' +
         '</section>' +
       '</div>';
   }
@@ -281,12 +296,12 @@
 
   function moduleCard(m, X) {
     var id = normId(m.module_id);
-    var cases = (m.clinical_case_titles || []).length;
+    var cases = (m.clinical_cases || m.clinical_case_titles || []).length;
     var practice = (m.virtual_patients || []).length + (m.osce_links || []).length + (m.tumorboard_links || []).length;
     return '<article class="orp-card" data-module="' + esc(id) + '">' +
       '<div class="orp-cardtop"><span class="orp-tag">' + esc(id) + '</span><span class="orp-tag">' + esc(m.pedagogical_year) + '-й год</span></div>' +
       '<h3 class="orp-h3">' + esc(m.module_title) + '</h3>' +
-      '<div class="orp-muted">Лекция ' + esc(m.actual_lecture_date || '') + '</div>' +
+      '<div class="orp-muted">Лекция ' + esc(m.actual_lecture_date || '') + (m.lecturer ? ' · ' + esc(m.lecturer) : '') + '</div>' +
       '<div class="orp-stats"><span class="orp-tag">задачи ' + cases + '</span><span class="orp-tag">тесты ' + esc(m.test_questions || (X.questionsByModule[id] || []).length) + '</span>' +
         (practice ? '<span class="orp-tag">практика ' + practice + '</span>' : '') + '</div>' +
       '<button type="button" class="orp-primary orp-module-open" data-id="' + esc(id) + '">Открыть модуль</button>' +
@@ -307,35 +322,74 @@
 
   function renderModuleDetail(m, D, X) {
     var id = normId(m.module_id);
+    var R = m.reading || {};
     var rf = X.rfByModule[id] || [];
     var books = X.booksByModule[id] || [];
-    var sources = (X.sourcesByModule[id] || []).slice(0, 8);
     var tools = (X.toolsByModule[id] || []).slice(0, Number((D.rules && D.rules.tools_primary_max) || 3));
     var sims = (X.simsByModule[id] || []).slice(0, Number((D.rules && D.rules.simulators_primary_max) || 2));
     var vps = (m.virtual_patients || []).map(function (i) { return X.vps[i]; }).filter(Boolean);
     var osce = (m.osce_links || []).map(function (i) { return X.osce[i]; }).filter(Boolean);
     var tbs = (m.tumorboard_links || []).map(function (i) { return X.tb[i]; }).filter(Boolean);
     var nQ = (X.questionsByModule[id] || []).length;
+    var cal = m.calendar || [];
 
+    var lectureLine = cal.length
+      ? cal.map(function (c) { return esc(c.date) + ' · ' + esc(c.lecturer) + (c.section ? ' · ' + esc(c.section) : '') + (cal.length > 1 ? ' — ' + esc(c.title) : ''); }).join('<br>')
+      : esc(m.lecture || 'Материал будет добавлен.');
+
+    // Что читать: блок А из DOCX, затем связи из библиотеки руководителя
     var reading = '';
-    if (rf.length) reading += '<div class="orp-kicker">Клинические рекомендации РФ</div>' + linkList(rf, function (g) { return resLink(g.title, g.url, (g.year ? g.year : '') + (g.kr_id ? ' · КР ' + g.kr_id : '')); });
-    if (books.length) reading += '<div class="orp-kicker">Учебники и руководства</div>' + linkList(books, function (b) { return resLink(b.title, b.url, b.type || ''); });
-    if (sources.length) reading += '<div class="orp-kicker">Источники к тестовым заданиям</div>' + linkList(sources, function (s) { return resLink(s.title, s.url, ''); });
+    var res = function (items, mapFn) { return linkList(items, mapFn); };
+    if ((R.guidelines || []).length) reading += '<div class="orp-kicker">Рекомендации и нормативные документы</div>' + res(R.guidelines, function (g) { return resLink(g.title, g.url, g.note); });
+    if (rf.length) reading += '<div class="orp-kicker">Клинические рекомендации РФ по теме</div>' + res(rf, function (g) { return resLink(g.title, g.url, (g.year ? g.year : '') + (g.kr_id ? ' · КР ' + g.kr_id : '')); });
+    if ((R.reviews || []).length) reading += '<div class="orp-kicker">Обзоры и справочные ресурсы</div>' + res(R.reviews, function (g) { return resLink(g.title, g.url, g.note); });
+    if ((R.key_studies || []).length) {
+      var groups = [], byG = {};
+      R.key_studies.forEach(function (k) { var g = k.group || ''; if (!byG[g]) { byG[g] = []; groups.push(g); } byG[g].push(k); });
+      reading += '<div class="orp-kicker">Ключевые исследования</div>' + groups.map(function (g) {
+        return (g ? '<div class="orp-subkicker">' + esc(g) + '</div>' : '') + res(byG[g], function (k) { return resLink(k.title, k.url, k.note); });
+      }).join('');
+    }
+    if (books.length) reading += '<div class="orp-kicker">Учебники и руководства</div>' + res(books, function (b) { return resLink(b.title, b.url, b.type || ''); });
+    if ((R.lectures || []).length) reading += '<div class="orp-kicker">Лекции и видео</div>' + res(R.lectures, function (g) { return resLink(g.title, g.url, g.note); });
+    if ((R.updates_2026 || []).length) reading += '<div class="orp-kicker">Актуализация 2026</div>' + res(R.updates_2026, function (g) { return resLink(g.title, g.url, g.note); });
     if (!reading) reading = '<p class="orp-muted">Материалы для чтения к этому модулю пока не привязаны.</p>';
+
+    // Клинические задачи с эталонами (Б2) или только заголовки (старый формат)
+    var casesHtml = '';
+    if ((m.clinical_cases || []).length) {
+      casesHtml = m.clinical_cases.map(function (c, i) {
+        return '<div class="orp-case">' +
+          '<div class="orp-case-title">' + esc(c.title) + '</div>' +
+          (c.vignette ? '<p>' + esc(c.vignette) + '</p>' : '') +
+          (c.questions ? '<p class="orp-case-q">' + esc(c.questions) + '</p>' : '') +
+          (c.answer ? '<button type="button" class="orp-btn orp-btn-sm orp-case-toggle" data-i="' + i + '">Показать эталонный ответ</button>' +
+            '<div class="orp-feedback orp-hidden" data-answer="' + i + '">' + esc(c.answer) +
+            ((c.sources || []).length ? '<div class="orp-source">Источники: ' + c.sources.map(function (sx) { return sx.url ? '<a href="' + esc(sx.url) + '" target="_blank" rel="noopener">' + esc(sx.title) + '</a>' : esc(sx.title); }).join(' · ') + '</div>' : '') +
+            '</div>' : '') +
+        '</div>';
+      }).join('');
+    } else {
+      casesHtml = '<ol class="orp-list">' + ((m.clinical_case_titles || []).map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') || '<li>Материалы будут добавлены.</li>') + '</ol>';
+    }
 
     var practice = '';
     var chip = function (kind, item, label) {
       return '<button type="button" class="orp-chipbtn" data-open="' + kind + '" data-id="' + esc(item.id) + '"><b>' + esc(item.id) + '</b> ' + esc(label) + '</button>';
     };
     if (vps.length) practice += '<div class="orp-kicker">Виртуальные пациенты</div><div class="orp-chips">' + vps.map(function (v) { return chip('vp', v, v.title); }).join('') + '</div>';
-    if (osce.length) practice += '<div class="orp-kicker">Станции OSCE</div><div class="orp-chips">' + osce.map(function (s) { return chip('osce', s, s.title); }).join('') + '</div>';
+    if (osce.length) practice += '<div class="orp-kicker">Станции OSCE</div><div class="orp-chips">' + osce.map(function (sx) { return chip('osce', sx, sx.title); }).join('') + '</div>';
     if (tbs.length) practice += '<div class="orp-kicker">Tumor Board</div><div class="orp-chips">' + tbs.map(function (c) { return chip('tb', c, c.title); }).join('') + '</div>';
     if (!practice) practice = '<p class="orp-muted">Интеграционные сценарии к этому модулю не назначены.</p>';
 
     var instruments = '';
     if (tools.length) instruments += '<div class="orp-kicker">Клинические инструменты</div>' + linkList(tools, function (t) { return resLink(t.name, t.url, [t.category, t.teaching].filter(Boolean).join(' · ')); });
-    if (sims.length) instruments += '<div class="orp-kicker">Внешние симуляторы</div>' + linkList(sims, function (s) { return resLink(s.name, s.url, [s.provider, s.access].filter(Boolean).join(' · ')); });
+    if (sims.length) instruments += '<div class="orp-kicker">Внешние симуляторы</div>' + linkList(sims, function (sx) { return resLink(sx.name, sx.url, [sx.provider, sx.access].filter(Boolean).join(' · ')); });
     if (!instruments) instruments = '<p class="orp-muted">Инструменты к этому модулю не назначены.</p>';
+
+    var checklist = (m.skills_checklist || []).length
+      ? '<div class="orp-stage"><b>Чек-лист навыков для дневника ординатора</b><ul class="orp-list orp-checklist">' + m.skills_checklist.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul></div>'
+      : '';
 
     return '<div class="orp-runner orp-module-detail">' +
       '<div class="orp-cardtop">' +
@@ -346,17 +400,21 @@
       '</div>' +
       '<h3 class="orp-h3 orp-h3-lg">' + esc(m.module_title) + '</h3>' +
       (m.rationale ? '<p class="orp-muted">' + esc(m.rationale) + '</p>' : '') +
+      '<div class="orp-actions orp-actions-top">' +
+        (m.docx ? '<a class="orp-primary" href="' + esc(fileUrl(m.docx)) + '" target="_blank" rel="noopener">Скачать модуль (DOCX)</a>' : '') +
+        (nQ ? '<button type="button" class="orp-btn orp-module-test" data-id="' + esc(id) + '">Тест по модулю · ' + nQ + '</button>' : '') +
+      '</div>' +
 
-      '<div class="orp-stage"><b>Лекция</b><p>' + esc(m.lecture || 'Материал будет добавлен.') + '</p></div>' +
+      '<div class="orp-stage"><b>Лекция</b><p>' + lectureLine + '</p></div>' +
       '<div class="orp-stage"><b>Что читать</b>' + reading + '</div>' +
-      '<div class="orp-stage"><b>Семинар и клинические задачи</b>' +
-        (m.seminar_basis ? '<p class="orp-muted">' + esc(m.seminar_basis) + '</p>' : '') +
-        '<ol class="orp-list">' + ((m.clinical_case_titles || []).map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') || '<li>Материалы будут добавлены.</li>') + '</ol></div>' +
+      '<div class="orp-stage"><b>Клинические задачи семинара</b>' +
+        (m.seminar_basis ? '<p class="orp-muted">' + esc(m.seminar_basis) + '</p>' : '') + casesHtml + '</div>' +
       ((m.oral_discussion_questions || []).length ? '<div class="orp-stage"><b>Вопросы для устного разбора</b><ol class="orp-list">' + m.oral_discussion_questions.slice(0, 8).map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ol></div>' : '') +
-      '<div class="orp-stage"><b>Самоконтроль</b><p>Тестовых заданий по модулю: ' + nQ + '.</p>' +
+      '<div class="orp-stage"><b>Самоконтроль</b><p>Тестовых заданий по модулю: ' + nQ + '. Ответ, пояснение и источник показываются после каждого вопроса.</p>' +
         (nQ ? '<button type="button" class="orp-primary orp-module-test" data-id="' + esc(id) + '">Запустить тест по модулю</button>' : '') + '</div>' +
       '<div class="orp-stage"><b>Практика</b>' + practice + '</div>' +
       '<div class="orp-stage"><b>Инструменты и симуляторы</b>' + instruments + '</div>' +
+      checklist +
       '<div class="orp-actions"><button type="button" class="orp-btn orp-module-close">Закрыть модуль</button>' +
         '<a class="orp-btn orp-copylink" href="?module=' + esc(id) + '">Ссылка на модуль</a></div>' +
     '</div>';
@@ -387,8 +445,14 @@
       if (!m) return;
       var card = q('.orp-card[data-module="' + id + '"]', grid);
       if (!card) {
+        if (CFG.year !== 'all' && String(m.pedagogical_year) !== CFG.year) {
+          var other = CFG.yearUrls[String(m.pedagogical_year)];
+          if (other) { window.location.href = withParam(other, 'module', id); return; }
+          notice('Модуль ' + id + ' относится к ' + m.pedagogical_year + '-му году обучения и открывается на странице другого года.', 'is-error');
+          return;
+        }
         search.value = '';
-        if (selectedYear !== 'all' && String(m.pedagogical_year) !== selectedYear) selectedYear = 'all';
+        if (selectedYear !== 'all') { selectedYear = 'all'; qa('.orp-pill[data-year]').forEach(function (x) { x.classList.toggle('is-active', x.getAttribute('data-year') === 'all'); }); }
         render();
         card = q('.orp-card[data-module="' + id + '"]', grid);
         if (!card) return;
@@ -401,8 +465,13 @@
       card.insertAdjacentElement('afterend', inline);
 
       q('.orp-module-close', inline).addEventListener('click', closeDetail);
-      var testBtn = q('.orp-module-test', inline);
-      if (testBtn) testBtn.addEventListener('click', function () { api.startModuleTest(id); });
+      qa('.orp-module-test', inline).forEach(function (b) { b.addEventListener('click', function () { api.startModuleTest(id); }); });
+      qa('.orp-case-toggle', inline).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var ans = q('[data-answer="' + b.getAttribute('data-i') + '"]', inline);
+          if (ans) { ans.classList.remove('orp-hidden'); b.classList.add('orp-hidden'); }
+        });
+      });
       qa('.orp-chipbtn', inline).forEach(function (b) {
         b.addEventListener('click', function () { api.open(b.getAttribute('data-open'), b.getAttribute('data-id')); });
       });
@@ -699,6 +768,42 @@
     api.startTB = startTB;
   }
 
+  /* ---------- календарь ---------- */
+
+  function setupCalendar(D, X, api) {
+    var box = q('#orpCalBox'), count = q('#orpCalCount'), controls = q('#orpCalControls');
+    var rows = D.calendar || [];
+    var modYear = {};
+    D.modules.forEach(function (m) { modYear[normId(m.module_id)] = String(m.pedagogical_year); });
+    var filter = 'all';
+    count.textContent = rows.length + ' ' + plural(rows.length, ['занятие', 'занятия', 'занятий']);
+    controls.innerHTML =
+      '<button type="button" class="orp-pill is-active" data-cal="all">Все занятия</button>' +
+      '<button type="button" class="orp-pill" data-cal="1">Модули 1-го года</button>' +
+      '<button type="button" class="orp-pill" data-cal="2">Модули 2-го года</button>' +
+      (D.calendar_docx ? '<a class="orp-btn orp-grow-right" href="' + esc(fileUrl(D.calendar_docx)) + '" target="_blank" rel="noopener">Календарный план 2026/2027 (DOCX)</a>' : '');
+    function render() {
+      var items = rows.filter(function (r) { return filter === 'all' || modYear[r.module] === filter; });
+      box.innerHTML = '<div class="orp-tablewrap"><table class="orp-table orp-cal"><thead><tr><th>№</th><th>Дата</th><th>Тема</th><th>Лектор / формат</th><th>Раздел</th><th>Модуль</th></tr></thead><tbody>' +
+        items.map(function (r) {
+          var y = modYear[r.module] || '';
+          var same = CFG.year === 'all' || CFG.year === y;
+          var link = same
+            ? '<button type="button" class="orp-minichip orp-cal-open" data-id="' + esc(r.module) + '">' + esc(r.module) + '</button>'
+            : (CFG.yearUrls[y] ? '<a class="orp-minichip" href="' + esc(withParam(CFG.yearUrls[y], 'module', r.module)) + '">' + esc(r.module) + ' · ' + y + '-й год</a>' : '<span class="orp-minichip">' + esc(r.module) + ' · ' + y + '-й год</span>');
+          return '<tr><td class="orp-num">' + esc(r.n) + '</td><td class="orp-num">' + esc(r.date) + '</td><td>' + esc(r.title) + '</td><td>' + esc(r.lecturer) + '</td><td>' + esc(r.section) + '</td><td>' + link + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      qa('.orp-cal-open', box).forEach(function (b) { b.addEventListener('click', function () { api.open('module', b.getAttribute('data-id')); }); });
+    }
+    qa('.orp-pill[data-cal]', controls).forEach(function (b) {
+      b.addEventListener('click', function () {
+        qa('.orp-pill[data-cal]', controls).forEach(function (x) { x.classList.remove('is-active'); });
+        b.classList.add('is-active'); filter = b.getAttribute('data-cal'); render();
+      });
+    });
+    render();
+  }
+
   /* ---------- сборка ---------- */
 
   var API = {
@@ -728,6 +833,7 @@
         setupVP(D, X, API);
         setupOSCE(D, X, API);
         setupTB(D, X, API);
+        setupCalendar(D, X, API);
 
         // Глубокие ссылки: даём странице Tilda дорисоваться, затем открываем и прокручиваем.
         var p = new URLSearchParams(window.location.search);
