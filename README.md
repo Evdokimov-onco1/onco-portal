@@ -8,7 +8,7 @@
 
 ```
 data/      orp-data.json — собранная база (V4): модули с блоком «что читать», банк v34, календарь, библиотека, VP, OSCE, TB
-modules/   61 DOCX-модуль stage6 и календарный план; раздаются через jsDelivr
+modules/   61 DOCX-модуль stage6 и календарный план; раздаются через raw.githubusercontent.com (jsDelivr отдаёт 403 на DOCX)
 src/       portal.js (движок, сам строит разметку) и portal.css
 tools/     build_data.py — сборка базы из JSON руководителя + stage6 (банк v34, DOCX→md, index.html)
            check_data.py — проверка базы (форматы ID, висячие ссылки, покрытие)

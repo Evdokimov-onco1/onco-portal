@@ -15,7 +15,7 @@
   if (!root) return;
 
   var DEFAULT_DATA_URL = 'https://cdn.jsdelivr.net/gh/Evdokimov-onco1/onco-portal@main/data/orp-data.json';
-  var DEFAULT_MODULES_URL = 'https://cdn.jsdelivr.net/gh/Evdokimov-onco1/onco-portal@main/modules/';
+  var DEFAULT_MODULES_URL = 'https://raw.githubusercontent.com/Evdokimov-onco1/onco-portal/main/modules/';
 
   var CFG = {
     year: String(root.getAttribute('data-year') || 'all'),
