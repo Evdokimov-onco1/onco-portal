@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>onco-portal · локальная проверка</title>
+<link rel="stylesheet" href="../src/portal.css">
+<style>
+  body{margin:0;background:#fff;font-family:"Noto Sans",Arial,sans-serif}
+  .dev-bar{background:#16202a;color:#cfd7df;font-size:13px;padding:8px 22px;display:flex;gap:14px;align-items:center}
+  .dev-bar a{color:#fff}
+  #allrecords{max-width:1240px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="dev-bar">
+  <span>Локальная проверка. Год:</span>
+  <a href="?year=1">1</a> <a href="?year=2">2</a> <a href="?year=all">все</a>
+  <span>· ссылки: <a href="?year=1&module=M07">?module=M07</a> <a href="?year=all&vp=VP-01">?vp=VP-01</a> <a href="?year=1&osce=S01">?osce=S01</a> <a href="?year=2&tb=TB01">?tb=TB01</a></span>
+</div>
+<div id="allrecords" data-tilda-project-id="17587206">
+  <div id="oncoResidencyPortal" data-year="1" data-data-url="../data/orp-data.json" data-home="?year=all"></div>
+</div>
+<script>
+  (function(){
+    var y = new URLSearchParams(location.search).get('year');
+    if (y) document.getElementById('oncoResidencyPortal').setAttribute('data-year', y);
+  })();
+</script>
+<script src="../src/portal.js"></script>
+</body>
+</html>

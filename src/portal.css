@@ -1,0 +1,91 @@
+/* onco-portal · стили блока «Ординатура». Все селекторы внутри #oncoResidencyPortal. */
+#oncoResidencyPortal{font-size:16px;line-height:1.45;font-family:"Noto Sans",Arial,"Helvetica Neue",sans-serif;color:#16202a;background:#fff}
+#oncoResidencyPortal *{box-sizing:border-box}
+#oncoResidencyPortal .orp-wrap{max-width:1240px;margin:0 auto;padding:22px}
+#oncoResidencyPortal .orp-topbar{padding:4px 0 0}
+#oncoResidencyPortal .orp-back{color:#3f6f8f;text-decoration:none;font-size:14px}
+#oncoResidencyPortal .orp-hero{padding:22px 0 16px}
+#oncoResidencyPortal .orp-eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#65717c;font-weight:700}
+#oncoResidencyPortal .orp-h1{font-size:40px;line-height:1.08;margin:8px 0 10px;font-weight:700}
+#oncoResidencyPortal .orp-h2{font-size:27px;line-height:1.15;margin:0}
+#oncoResidencyPortal .orp-h3{font-size:18px;line-height:1.3;margin:12px 0 8px}
+#oncoResidencyPortal .orp-h3-lg{font-size:22px}
+#oncoResidencyPortal .orp-lead{font-size:17px;line-height:1.5;max-width:860px;margin:0;color:#52606c}
+#oncoResidencyPortal .orp-lead-sm{font-size:15px;margin:0 0 14px}
+#oncoResidencyPortal .orp-muted{color:#6a7681;font-size:14px}
+#oncoResidencyPortal .orp-note{font-size:14px;color:#52606c;margin:6px 0 0;line-height:1.4}
+#oncoResidencyPortal .orp-notice{margin:12px 0;padding:12px 14px;border-radius:12px;background:#f2f5f7;color:#40515e;border:1px solid #dbe3e8;font-size:15px}
+#oncoResidencyPortal .orp-notice.is-error{background:#fff2f2;color:#8a2d2d;border-color:#efcaca}
+#oncoResidencyPortal .orp-nav{display:flex;gap:8px;overflow-x:auto;padding:8px 0 16px;scrollbar-width:thin}
+#oncoResidencyPortal .orp-navbtn,#oncoResidencyPortal .orp-pill,#oncoResidencyPortal .orp-btn,#oncoResidencyPortal .orp-primary{
+  appearance:none;border:1px solid #cfd7df;background:#fff;color:#17212b;border-radius:999px;padding:9px 14px;cursor:pointer;font:inherit;white-space:nowrap;text-decoration:none;display:inline-block}
+#oncoResidencyPortal .orp-navbtn.is-active,#oncoResidencyPortal .orp-pill.is-active{font-weight:700;border-color:#17212b}
+#oncoResidencyPortal .orp-primary{background:#17212b;color:#fff;border-color:#17212b}
+#oncoResidencyPortal button:focus-visible,#oncoResidencyPortal a:focus-visible{outline:2px solid #3f7ea6;outline-offset:2px}
+#oncoResidencyPortal .orp-panel{display:none;padding:10px 0 30px}
+#oncoResidencyPortal .orp-panel.is-active{display:block}
+#oncoResidencyPortal .orp-sectionhead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:10px 0 16px}
+#oncoResidencyPortal .orp-controls{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+#oncoResidencyPortal .orp-input{border:1px solid #cfd7df;border-radius:11px;padding:10px 12px;background:#fff;color:#17212b;font:inherit;min-width:180px}
+#oncoResidencyPortal .orp-grow{flex:1 1 260px}
+#oncoResidencyPortal .orp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+#oncoResidencyPortal .orp-card{border:1px solid #dde4ea;border-radius:17px;padding:17px;min-height:160px;background:#fff;display:flex;flex-direction:column;gap:6px}
+#oncoResidencyPortal .orp-card .orp-h3{margin:6px 0 2px}
+#oncoResidencyPortal .orp-card .orp-primary,#oncoResidencyPortal .orp-card .orp-link{margin-top:auto;align-self:flex-start}
+#oncoResidencyPortal .orp-card-selected{border-color:#17212b;box-shadow:0 0 0 2px rgba(23,33,43,.08)}
+#oncoResidencyPortal .orp-module-inline{grid-column:1/-1;margin:-2px 0 8px}
+#oncoResidencyPortal .orp-module-inline .orp-runner{margin-top:0}
+#oncoResidencyPortal .orp-cardtop,#oncoResidencyPortal .orp-chips,#oncoResidencyPortal .orp-stats{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+#oncoResidencyPortal .orp-stats{margin:4px 0 8px}
+#oncoResidencyPortal .orp-chips{margin:6px 0}
+#oncoResidencyPortal .orp-tag{display:inline-block;font-size:13px;background:#f1f4f6;border-radius:8px;padding:4px 7px;color:#52606c}
+#oncoResidencyPortal .orp-minichip{display:inline-block;font-size:12px;background:#eef2f5;border:1px solid transparent;border-radius:6px;padding:2px 6px;color:#52606c;font-family:inherit;cursor:default}
+#oncoResidencyPortal button.orp-minichip{cursor:pointer}
+#oncoResidencyPortal button.orp-minichip:hover{border-color:#9fb1c0;color:#17212b}
+#oncoResidencyPortal .orp-chipbtn{appearance:none;font:inherit;font-size:14px;text-align:left;border:1px solid #cfd7df;background:#fff;color:#17212b;border-radius:11px;padding:8px 11px;cursor:pointer;line-height:1.3}
+#oncoResidencyPortal .orp-chipbtn:hover{border-color:#17212b}
+#oncoResidencyPortal .orp-chipbtn b{color:#3f6f8f;margin-right:4px}
+#oncoResidencyPortal .orp-link{display:inline-block;text-decoration:none;margin-top:8px}
+#oncoResidencyPortal .orp-runner{margin-top:18px;border:1px solid #d9e1e7;border-radius:18px;padding:20px;background:#fbfcfd}
+#oncoResidencyPortal .orp-question{font-size:18px;line-height:1.45;font-weight:700;margin:12px 0}
+#oncoResidencyPortal .orp-choice{display:block;width:100%;text-align:left;border:1px solid #d4dce3;background:#fff;border-radius:11px;padding:12px;margin:8px 0;cursor:pointer;font:inherit;line-height:1.4}
+#oncoResidencyPortal .orp-choice:disabled{cursor:default;opacity:.92}
+#oncoResidencyPortal .orp-choice.is-good{outline:2px solid #398768}
+#oncoResidencyPortal .orp-choice.is-bad{outline:2px solid #a95757}
+#oncoResidencyPortal .orp-feedback{margin:12px 0;padding:12px;border-radius:11px;background:#f2f5f7;line-height:1.45}
+#oncoResidencyPortal .orp-list{padding-left:22px;line-height:1.5;margin:6px 0}
+#oncoResidencyPortal .orp-resources{list-style:none;padding:0;margin:4px 0 8px}
+#oncoResidencyPortal .orp-res-item{padding:6px 0;border-bottom:1px dashed #e3e9ee;line-height:1.4}
+#oncoResidencyPortal .orp-res-item:last-child{border-bottom:none}
+#oncoResidencyPortal .orp-res-item a{color:#17212b;text-decoration:underline;text-decoration-color:#9fb1c0;text-underline-offset:2px}
+#oncoResidencyPortal .orp-res-item a:hover{text-decoration-color:#17212b}
+#oncoResidencyPortal .orp-res-meta{display:block;font-size:13px;color:#6a7681;margin-top:2px}
+#oncoResidencyPortal .orp-kicker{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#65717c;font-weight:700;margin:12px 0 4px}
+#oncoResidencyPortal .orp-kicker:first-child{margin-top:6px}
+#oncoResidencyPortal .orp-tablewrap{overflow-x:auto;margin:12px 0}
+#oncoResidencyPortal .orp-table{width:100%;border-collapse:collapse;font-size:14px}
+#oncoResidencyPortal .orp-table th,#oncoResidencyPortal .orp-table td{border:1px solid #dce3e8;padding:8px;text-align:left;vertical-align:top}
+#oncoResidencyPortal .orp-table th{background:#f3f6f8}
+#oncoResidencyPortal .orp-stage{border-left:3px solid #cfd7df;padding:4px 0 4px 14px;margin:16px 0}
+#oncoResidencyPortal .orp-stage>b{display:block;margin-bottom:4px}
+#oncoResidencyPortal .orp-stage p{margin:4px 0}
+#oncoResidencyPortal .orp-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+#oncoResidencyPortal .orp-hidden{display:none!important}
+#oncoResidencyPortal .orp-source{font-size:14px;color:#6b7680;margin-top:10px}
+#oncoResidencyPortal .orp-source a{color:#3f6f8f}
+@media (max-width:900px){
+  #oncoResidencyPortal .orp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #oncoResidencyPortal .orp-h1{font-size:34px}
+}
+@media (max-width:620px){
+  #oncoResidencyPortal .orp-wrap{padding:15px}
+  #oncoResidencyPortal .orp-grid{grid-template-columns:1fr}
+  #oncoResidencyPortal .orp-h1{font-size:29px}
+  #oncoResidencyPortal .orp-h2{font-size:23px}
+  #oncoResidencyPortal .orp-sectionhead{align-items:flex-start;flex-direction:column;gap:4px}
+  #oncoResidencyPortal .orp-input{width:100%;min-width:0}
+  #oncoResidencyPortal .orp-controls .orp-primary{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  #oncoResidencyPortal *{scroll-behavior:auto}
+}
