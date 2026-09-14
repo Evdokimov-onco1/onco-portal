@@ -837,13 +837,16 @@
 
         // Глубокие ссылки: даём странице Tilda дорисоваться, затем открываем и прокручиваем.
         var p = new URLSearchParams(window.location.search);
+        var deepTarget = null;
         setTimeout(function () {
-          if (p.get('module')) API.open('module', normId(p.get('module')));
-          else if (p.get('vp')) API.open('vp', p.get('vp'));
-          else if (p.get('osce')) API.open('osce', p.get('osce'));
-          else if (p.get('tb')) API.open('tb', p.get('tb'));
+          if (p.get('module')) { API.open('module', normId(p.get('module'))); deepTarget = '.orp-module-inline'; }
+          else if (p.get('vp')) { API.open('vp', p.get('vp')); deepTarget = '#orpVpRunner'; }
+          else if (p.get('osce')) { API.open('osce', p.get('osce')); deepTarget = '#orpOsceRunner'; }
+          else if (p.get('tb')) { API.open('tb', p.get('tb')); deepTarget = '#orpTbRunner'; }
           else if (p.get('panel')) activatePanel(p.get('panel'));
         }, 300);
+        // Tilda и Members после загрузки возвращают страницу наверх; повторяем прокрутку позже.
+        setTimeout(function () { if (deepTarget) scrollTo(q(deepTarget), 0); }, 1500);
       })
       .catch(function (err) {
         notice('Не удалось загрузить учебные материалы (' + err.message + '). Обновите страницу; если ошибка повторяется, сообщите на кафедру.', 'is-error');
