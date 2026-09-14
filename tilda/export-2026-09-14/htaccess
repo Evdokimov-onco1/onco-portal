@@ -1,0 +1,43 @@
+ErrorDocument 403 /404.html
+ErrorDocument 404 /404.html
+
+DirectoryIndex page103130276.html
+
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} /robots.txt
+RewriteCond "%{DOCUMENT_ROOT}/robots_%{HTTP_HOST}.txt" -f
+RewriteRule ^(.*)$ robots_%{HTTP_HOST}.txt [NC,L]
+RewriteRule ^header$ page93593526.html [NC]
+RewriteRule ^header/$ page93593526.html [NC]
+
+RewriteRule ^footer$ page124406506.html [NC]
+RewriteRule ^footer/$ page124406506.html [NC]
+
+RewriteRule ^about$ page126991156.html [NC]
+RewriteRule ^about/$ page126991156.html [NC]
+
+RewriteRule ^materials$ page129616346.html [NC]
+RewriteRule ^materials/$ page129616346.html [NC]
+
+RewriteRule ^feedback$ page130013576.html [NC]
+RewriteRule ^feedback/$ page130013576.html [NC]
+
+RewriteRule ^main-ordinatura-1$ page130484266.html [NC]
+RewriteRule ^main-ordinatura-1/$ page130484266.html [NC]
+
+RewriteRule ^ordinatura-year-1$ page229315509.html [NC]
+RewriteRule ^ordinatura-year-1/$ page229315509.html [NC]
+
+RewriteRule ^main-ordinatura-2$ page229628509.html [NC]
+RewriteRule ^main-ordinatura-2/$ page229628509.html [NC]
+
+RewriteRule ^members/login$ page229637309.html [NC]
+RewriteRule ^members/login/$ page229637309.html [NC]
+
+RewriteRule ^ordinatura-year-2$ page229773709.html [NC]
+RewriteRule ^ordinatura-year-2/$ page229773709.html [NC]
+
+RewriteRule ^members/ ma_start.html [NC,L]
+
+

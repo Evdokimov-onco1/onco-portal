@@ -1,0 +1,13 @@
+{
+  "node_syntax_ok": true,
+  "modules": 61,
+  "questions": 633,
+  "virtual_patients": 12,
+  "osce_stations": 12,
+  "tumor_board_cases": 8,
+  "generic_star_selector_present": false,
+  "global_h1_selector_present": false,
+  "external_script_or_css": false,
+  "mobile_breakpoints": 2,
+  "html_bytes": 1242492
+}

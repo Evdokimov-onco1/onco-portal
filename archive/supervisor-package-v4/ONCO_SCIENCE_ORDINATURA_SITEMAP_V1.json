@@ -1,0 +1,98 @@
+{
+  "version": "ONCO_SCIENCE_ORDINATURA_SITEMAP_V1",
+  "date": "2026-08-31",
+  "root": "/ordinatura",
+  "pages": [
+    {
+      "url": "/ordinatura",
+      "title": "Ординатура по онкологии",
+      "purpose": "Стартовая страница: маршрут, 1-й/2-й год, быстрый доступ к модулям и учебным сервисам."
+    },
+    {
+      "url": "/ordinatura/year-1",
+      "title": "1-й год",
+      "purpose": "34 модуля базового и клинического ядра."
+    },
+    {
+      "url": "/ordinatura/year-2",
+      "title": "2-й год",
+      "purpose": "27 модулей продвинутого и интеграционного уровня."
+    },
+    {
+      "url": "/ordinatura/library",
+      "title": "Библиотека",
+      "purpose": "Учебники, руководства, клинические рекомендации РФ, инструменты и симуляторы."
+    },
+    {
+      "url": "/ordinatura/tests",
+      "title": "Банк тестов",
+      "purpose": "633 задания: по модулю, случайный тест, пробный экзамен."
+    },
+    {
+      "url": "/ordinatura/virtual-patients",
+      "title": "Виртуальные пациенты",
+      "purpose": "12 ветвящихся клинических сценариев."
+    },
+    {
+      "url": "/ordinatura/osce",
+      "title": "OSCE",
+      "purpose": "12 практических станций с чек-листами."
+    },
+    {
+      "url": "/ordinatura/tumor-board",
+      "title": "Tumor Board",
+      "purpose": "8 поэтапных мультидисциплинарных кейсов."
+    },
+    {
+      "url": "/ordinatura/final-assessment",
+      "title": "Итоговая аттестация",
+      "purpose": "Сборка итогового маршрута: тесты, OSCE, Tumor Board, модуль M61."
+    }
+  ],
+  "header_menu": [
+    {
+      "label": "1-й год",
+      "url": "/ordinatura/year-1"
+    },
+    {
+      "label": "2-й год",
+      "url": "/ordinatura/year-2"
+    },
+    {
+      "label": "Библиотека",
+      "url": "/ordinatura/library"
+    },
+    {
+      "label": "Тесты",
+      "url": "/ordinatura/tests"
+    },
+    {
+      "label": "Виртуальные пациенты",
+      "url": "/ordinatura/virtual-patients"
+    },
+    {
+      "label": "OSCE",
+      "url": "/ordinatura/osce"
+    },
+    {
+      "label": "Tumor Board",
+      "url": "/ordinatura/tumor-board"
+    }
+  ],
+  "module_card_order": [
+    "Тема",
+    "Фактическая дата лекции",
+    "Материалы",
+    "Семинар",
+    "Клинические задачи",
+    "Тест",
+    "Практический навык",
+    "Связанные ресурсы"
+  ],
+  "ux_rules": [
+    "Год обучения и календарная дата лекции отображаются раздельно.",
+    "Основная карточка модуля содержит не более 3 clinical tools и 2 внешних симуляторов.",
+    "OSCE/Tumor Board показываются только как связанные интеграционные элементы.",
+    "В мобильной версии основное меню горизонтально прокручивается; карточки становятся одноколоночными."
+  ]
+}

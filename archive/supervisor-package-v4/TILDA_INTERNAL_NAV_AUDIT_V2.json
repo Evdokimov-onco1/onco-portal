@@ -1,0 +1,32 @@
+{
+  "version": "TILDA_INTERNAL_NAV_AUDIT_V2",
+  "date": "2026-08-31",
+  "expected_routes": [
+    "/ordinatura",
+    "/ordinatura/final-assessment",
+    "/ordinatura/library",
+    "/ordinatura/osce",
+    "/ordinatura/tests",
+    "/ordinatura/tumor-board",
+    "/ordinatura/virtual-patients",
+    "/ordinatura/year-1",
+    "/ordinatura/year-2"
+  ],
+  "routes_referenced": [
+    "/ordinatura",
+    "/ordinatura/final-assessment",
+    "/ordinatura/library",
+    "/ordinatura/osce",
+    "/ordinatura/tests",
+    "/ordinatura/tumor-board",
+    "/ordinatura/virtual-patients",
+    "/ordinatura/year-1",
+    "/ordinatura/year-2"
+  ],
+  "missing_expected_routes_in_links": [],
+  "unexpected_internal_routes": [],
+  "module_deep_link_pattern": "/ordinatura?module=M01 … M61",
+  "module_detail_enabled": true,
+  "final_assessment_page_created": true,
+  "js_syntax_full_hardened": true
+}

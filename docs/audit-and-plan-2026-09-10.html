@@ -1,0 +1,235 @@
+<title>Ординатура onco-science: аудит и план</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Sans:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+:root{
+  --bg:#f6f8fa; --paper:#ffffff; --ink:#16202a; --ink-2:#4a5866; --muted:#7a8894;
+  --line:#d9e2ea; --accent:#3f7ea6; --accent-soft:#e3eef5;
+  --ok:#2c7a57; --ok-soft:#e4f3ec; --part:#a9711b; --part-soft:#fbf0dc; --no:#a83a3a; --no-soft:#f9e5e5;
+  --code-bg:#eef2f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b; --paper:#161e26; --ink:#e6edf3; --ink-2:#b8c4cf; --muted:#8a98a5;
+    --line:#2a3642; --accent:#7fb3d3; --accent-soft:#1b2e3c;
+    --ok:#6fcf9a; --ok-soft:#153224; --part:#e0a94a; --part-soft:#3a2c12; --no:#e07b7b; --no-soft:#3b1c1c;
+    --code-bg:#1e2830;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --paper:#161e26; --ink:#e6edf3; --ink-2:#b8c4cf; --muted:#8a98a5;
+  --line:#2a3642; --accent:#7fb3d3; --accent-soft:#1b2e3c;
+  --ok:#6fcf9a; --ok-soft:#153224; --part:#e0a94a; --part-soft:#3a2c12; --no:#e07b7b; --no-soft:#3b1c1c;
+  --code-bg:#1e2830;
+}
+body{background:var(--bg);color:var(--ink);font-family:"PT Sans",Arial,"Helvetica Neue",sans-serif;font-size:17px;line-height:1.55;margin:0}
+.wrap{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+h1,h2,h3{font-family:"PT Serif",Georgia,"Times New Roman",serif;text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:38px;margin-bottom:10px}
+h2{font-size:26px;margin:56px 0 16px;padding-top:20px;border-top:1px solid var(--line)}
+h3{font-size:19px;margin:26px 0 8px}
+p{margin:0 0 14px;max-width:70ch}
+.eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.lead{font-size:19px;color:var(--ink-2);max-width:66ch}
+.meta{font-size:14px;color:var(--muted);margin-top:14px;display:flex;gap:18px;flex-wrap:wrap}
+code,.mono{font-family:"JetBrains Mono",Menlo,Consolas,monospace;font-size:.86em}
+code{background:var(--code-bg);padding:1px 6px;border-radius:5px}
+pre{background:var(--code-bg);padding:14px 16px;border-radius:10px;overflow-x:auto;font-size:14px;line-height:1.5;margin:0 0 16px}
+pre code{background:none;padding:0}
+ul,ol{margin:0 0 16px;padding-left:22px;max-width:72ch}
+li{margin-bottom:6px}
+li::marker{color:var(--muted)}
+a{color:var(--accent)}
+.verdict{background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:20px 24px;margin:28px 0 0}
+.verdict p:last-child{margin:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+.col{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.col h3{margin-top:0;font-size:17px}
+.col .who{font-size:13px;color:var(--muted);margin-bottom:12px}
+.col ul{margin:0;padding-left:18px;font-size:15.5px}
+.tablewrap{overflow-x:auto;margin:16px 0 8px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:640px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+th{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--bg)}
+tr:last-child td{border-bottom:none}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.ok{background:var(--ok-soft);color:var(--ok)}
+.part{background:var(--part-soft);color:var(--part)}
+.no{background:var(--no-soft);color:var(--no)}
+.phase{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px 22px;margin:14px 0}
+.phase .ph{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.phase .ph h3{margin:0}
+.phase .tag{font-size:12.5px;color:var(--muted)}
+.phase p{margin-bottom:8px}
+.phase ul{margin-bottom:6px}
+.phase .out{font-size:14.5px;color:var(--ink-2);border-top:1px dashed var(--line);padding-top:8px;margin-top:10px}
+.callout{background:var(--accent-soft);border-radius:10px;padding:14px 18px;margin:16px 0;max-width:72ch}
+.callout p:last-child{margin:0}
+.small{font-size:14px;color:var(--muted)}
+@media(max-width:700px){.two{grid-template-columns:1fr}h1{font-size:30px}h2{font-size:22px}.wrap{padding:28px 16px 60px}}
+</style>
+
+<div class="wrap">
+<div class="eyebrow">Кафедра онкологии · onco-science.ru · раздел «Ординатура»</div>
+<h1>Аудит двух реализаций и план интеграции</h1>
+<p class="lead">Что спроектировал руководитель (пакет V4 от 31.08.2026), что из этого реально стоит на сайте (сборка от 07.09.2026), где расхождения, и в каком порядке их закрывать.</p>
+<div class="meta"><span>Подготовлено 10.09.2026</span><span>Источники: локальный пакет, транскрипт разговора, публичный сайт, личный кабинет ординатора, репозиторий данных</span></div>
+
+<div class="verdict">
+<p><b>Главный вывод.</b> Данные на сайте полностью совпадают с пакетом руководителя (тот же JSON, байт в байт: 61 модуль, 633 вопроса, 12 виртуальных пациентов, 12 станций OSCE, 8 кейсов Tumor Board). Потеряна не база, а <b>интерфейс</b>: исполнительница переписала движок и оставила три вкладки из шести. Виртуальные пациенты, OSCE и Tumor Board лежат в данных, но на сайте недоступны, а карточка модуля урезана до лекции, задач, вопросов и теста.</p>
+<p>Вторая проблема глубже: замысел «модуль как единица, в которой сразу видно что читать, какие задачи, какой тест и какие интеграции» <b>не реализован до конца даже в пакете руководителя</b>. Связи модуль → рекомендации, учебники, инструменты и симуляторы есть в данных, но интерфейс их не показывает. Списка «ключевых статей по каждому модулю», о котором говорил Михаил Юрьевич, в архиве нет вообще. Есть только источники к каждому тестовому вопросу.</p>
+</div>
+
+<h2>1. Две архитектуры</h2>
+<div class="two">
+<div class="col">
+<h3>Пакет руководителя</h3>
+<div class="who">ONCO_TILDA_PRODUCTION_PACKAGE_V4, 31.08.2026</div>
+<ul>
+<li>Один монолитный HTML-блок (1,2 МБ) для вставки в Tilda T123: JSON с данными зашит внутрь, внешних зависимостей нет.</li>
+<li>Шесть панелей в одном блоке: Модули, Библиотека, Банк тестов, Виртуальные пациенты, OSCE, Tumor Board. Файлы 01–06 отличаются только тем, какая панель активна.</li>
+<li>Девять маршрутов: <code>/ordinatura</code> (стартовая), <code>/year-1</code>, <code>/year-2</code>, шесть учебных зон, <code>/final-assessment</code>. Глубокие ссылки <code>/ordinatura?module=M07</code>.</li>
+<li>Полностью рабочие движки: тест с пояснениями, ветвящийся сценарий VP с баллами, станция OSCE с чек-листом, Tumor Board с поэтапным раскрытием.</li>
+<li>Карточка модуля: лекция, 4 задачи, вопросы для разбора, тест, ссылки VP/OSCE/TB (ID), инструменты (ID).</li>
+</ul>
+</div>
+<div class="col">
+<h3>Живой сайт</h3>
+<div class="who">Сборка исполнительницы, репозиторий на GitHub от 07.09.2026</div>
+<ul>
+<li>Данные вынесены в <code>orp-data.json</code> на GitHub (llcbrein-pro/onco-portal) и подгружаются через jsDelivr. Это разумно: контент обновляется коммитом, а не перевставкой мегабайта в Tilda.</li>
+<li>Раздел закрыт через Tilda Members: группы «Ординатура 1-й год» и «2-й год», страницы <code>/ordinatura-year-1</code> и <code>/ordinatura-year-2</code>, плюс два «личных кабинета» с лентой видеоматериалов.</li>
+<li>На странице года три вкладки: Модули (фильтр по году), Библиотека (4 категории, как в пакете), Банк тестов (344 и 289 заданий по годам).</li>
+<li>Карточка модуля: лекция, задачи, вопросы, кнопка теста, «Закрыть модуль». Без интеграций и инструментов.</li>
+<li>В репозитории есть версия движка, где VP/OSCE/TB выводятся как сырой JSON в <code>&lt;pre&gt;</code>. На сайт она не попала: этих вкладок нет.</li>
+<li>Пункт меню «Расписание» никуда не ведёт. Маршруты <code>/ordinatura/*</code> отдают 404.</li>
+</ul>
+</div>
+</div>
+
+<h2>2. Матрица: замысел → сайт</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Элемент замысла</th><th>Статус</th><th>Что на сайте</th></tr></thead>
+<tbody>
+<tr><td>Данные: 61 модуль, 633 вопроса, библиотека 118 записей</td><td><span class="pill ok">есть</span></td><td>JSON идентичен пакету, версия V3_INTERACTIVE от 31.08.</td></tr>
+<tr><td>Модули по годам с поиском</td><td><span class="pill ok">есть</span></td><td>34 и 27 модулей на страницах года.</td></tr>
+<tr><td>Банк тестов: по модулю, случайный, с пояснениями</td><td><span class="pill ok">есть</span></td><td>Работает, варианты перемешиваются, пояснение после ответа.</td></tr>
+<tr><td>Библиотека: рекомендации РФ, учебники, инструменты, симуляторы</td><td><span class="pill ok">есть</span></td><td>Все четыре категории, ссылки открываются в новой вкладке.</td></tr>
+<tr><td>Карточка модуля: лекция, задачи, вопросы, тест</td><td><span class="pill ok">есть</span></td><td>Совпадает с пакетом.</td></tr>
+<tr><td>Карточка модуля: связанные VP / OSCE / Tumor Board</td><td><span class="pill no">нет</span></td><td>Блок «Практическая интеграция» удалён. В данных связи есть у 28 / 50 / 51 модулей.</td></tr>
+<tr><td>Карточка модуля: клинические инструменты</td><td><span class="pill no">нет</span></td><td>Удалён. В пакете показывались только ID вида TOOL-AE-01 без названий и ссылок.</td></tr>
+<tr><td>Карточка модуля: что читать (рекомендации, учебники, статьи)</td><td><span class="pill no">нет</span></td><td>Не было и в пакете. Связи в данных есть, но в разных форматах ID (М-09 против M09, диапазоны M57–M59).</td></tr>
+<tr><td>Виртуальные пациенты (12 сценариев)</td><td><span class="pill no">нет</span></td><td>Вкладки нет. Движок в пакете готов.</td></tr>
+<tr><td>OSCE (12 станций с чек-листами)</td><td><span class="pill no">нет</span></td><td>Вкладки нет. Движок в пакете готов.</td></tr>
+<tr><td>Tumor Board (8 поэтапных кейсов)</td><td><span class="pill no">нет</span></td><td>Вкладки нет. Движок в пакете готов.</td></tr>
+<tr><td>Стартовая страница /ordinatura с маршрутом</td><td><span class="pill no">нет</span></td><td>Вместо неё «личный кабинет» с лентой видео, дублирующей главную.</td></tr>
+<tr><td>Итоговая аттестация</td><td><span class="pill no">нет</span></td><td>Страницы нет.</td></tr>
+<tr><td>Глубокие ссылки ?module=M07</td><td><span class="pill part">частично</span></td><td>Параметр читается, но модуль не открывается.</td></tr>
+<tr><td>Меню раздела: 1-й год | 2-й год | Библиотека | Тесты | VP | OSCE | TB</td><td><span class="pill part">частично</span></td><td>Общее меню сайта; год выбирается через группу Members, «Расписание» пустое.</td></tr>
+<tr><td>Доступ: ординатор видит свой год</td><td><span class="pill part">частично</span></td><td>Работает через группы, но у зарегистрированного руководителя группы не назначены, кабинет пуст. Роли «преподаватель / учащийся» нет.</td></tr>
+<tr><td>NCCN и ESMO в библиотеке</td><td><span class="pill no">нет</span></td><td>В данных нет отдельного раздела международных рекомендаций. ESMO упоминается только в пояснениях к вопросам.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>3. Что скрыто в самом пакете</h2>
+<p>Эти пункты стоит проговорить с Михаилом Юрьевичем: он уверен, что «в архиве всё подобрано», но часть его замысла до архива не доехала.</p>
+<ul>
+<li><b>Ключевых статей по модулям нет.</b> В JSON нет поля со списком публикаций для модуля. Единственные источники: <code>source_title</code> и <code>source_url</code> у каждого из 633 вопросов (в основном ссылки на PubMed-поиск). Из них можно собрать «источники к модулю» автоматически, но это не тот курируемый список, который он описывал. Нужно спросить, в каком файле он его делал.</li>
+<li><b>Связи модуль → библиотека существуют, но интерфейс их не рисует.</b> У рекомендаций РФ есть <code>module_ids</code>, у учебников строка <code>modules</code>, у инструментов и симуляторов массивы. Ни в пакете, ни на сайте это не собирается в карточку модуля.</li>
+<li><b>Три формата ID модуля.</b> Модули: <code>M09</code>. Вопросы и рекомендации: <code>М-09</code> (кириллическая М с дефисом). Учебники: строка <code>M04, M09–M10, M57–M59</code> с диапазонами. Нормализация нужна до любой сборки связей.</li>
+<li><b>Инструменты и интеграции показываются как ID.</b> «TOOL-AE-01», «S01», «TB03» вместо названий и переходов.</li>
+<li><b>Год лекции и дата.</b> В данных даты 2026–2028 (M61 назначен на 22.04.2028). Это правильно для двухлетнего потока, но требует явного указания на сайте, что это план набора 2026 года.</li>
+<li><b>Ограничения Tilda, которые пакет только обещал проверить:</b> выполнение JS в опубликованном T123, высота блока после раскрытия сценариев, iOS Safari, конфликт якорей. Живая версия это уже частично прошла, значит, база рабочая.</li>
+</ul>
+
+<h2>4. Чем анализировать сайт без админки</h2>
+<p>Всё, что ниже, уже применено в этом аудите и годится для повторных проверок.</p>
+<ul>
+<li><b>Карта сайта и robots.</b> <code>curl sitemap.xml</code> даёт полный список страниц Tilda, включая закрытые. Так нашлись <code>/main-ordinatura-1</code> и <code>/ordinatura-year-1</code>.</li>
+<li><b>Дамп публичных страниц.</b> Скрипт на Python вытаскивает текст, ID блоков Tilda (<code>data-record-type</code>) и ссылки. По ID блоков видно, из каких стандартных блоков собрана страница.</li>
+<li><b>Ваш залогиненный Chrome.</b> Через расширение Claude in Chrome читаю страницы личного кабинета под вашей сессией: текст, дерево доступности, скриншоты, клики по вкладкам.</li>
+<li><b>JavaScript в контексте страницы.</b> Один вызов показал, откуда грузятся данные (запрос к jsDelivr в <code>performance.getEntries</code>), какие ID у контейнеров и сколько байт в инлайн-скрипте.</li>
+<li><b>Публичный GitHub.</b> Репозиторий исполнительницы открыт: дерево файлов, история коммитов, сам движок. Сравнение JSON с пакетом сделано скриптом.</li>
+<li><b>Tilda MCP</b> уже подключён к этой сессии, но отвечает 409: нужны публичный и секретный ключи API проекта. С ними получу список страниц, их HTML и настройки без ручного тыканья.</li>
+<li><b>Для регресс-проверки после правок:</b> скрипт на Playwright, который логинится, открывает каждый модуль, запускает тест, проходит один сценарий VP и фиксирует ошибки консоли. Это тот «бот-тестер», о котором вы говорили.</li>
+</ul>
+
+<h2>5. План</h2>
+<p>Рекомендую <b>не откатываться на монолит руководителя</b>, а оставить архитектуру «данные + движок на GitHub, тонкий блок в Tilda», но вернуть в движок всё, что было в пакете, и достроить карточку модуля. Так контент правится коммитом, а Tilda трогается один раз.</p>
+
+<div class="phase">
+<div class="ph"><h3>Фаза 0. Доступы и контроль</h3><span class="tag">1 день · блокирует всё остальное</span></div>
+<ul>
+<li>Ключи Tilda API (публичный и секретный) для MCP, чтобы читать страницы и настройки.</li>
+<li>Права редактора в проекте Tilda 17587206 и в Tilda Members (группы, участники).</li>
+<li>Свой репозиторий вместо <code>llcbrein-pro/onco-portal</code>: сейчас сайт зависит от чужого аккаунта. Форк под ваш GitHub, переключить URL в блоке T123, версионировать тегами (<code>@v1.1</code>), а не <code>@main</code>: jsDelivr кэширует ветку до 12 часов.</li>
+<li>Назначить Михаилу Юрьевичу обе группы Members, чтобы кабинет перестал быть пустым.</li>
+</ul>
+<div class="out">Результат: сайт под вашим контролем, руководитель видит раздел.</div>
+</div>
+
+<div class="phase">
+<div class="ph"><h3>Фаза 1. Нормализация данных и связей</h3><span class="tag">1–2 дня · локально, без Tilda</span></div>
+<ul>
+<li>Скрипт сборки <code>build-data.py</code>: единый формат ID модуля, разворачивание диапазонов, справочник инструментов и симуляторов по ID.</li>
+<li>Для каждого модуля вычислить: рекомендации РФ, учебники, инструменты (не больше 3 основных), симуляторы (не больше 2), VP, OSCE, TB, а также «источники к модулю» из вопросов (уникальные title + url).</li>
+<li>Добавить в библиотеку раздел международных рекомендаций (NCCN, ESMO) и индикалк, как договорились в разговоре.</li>
+<li>Запросить у руководителя файл с ключевыми статьями по модулям; поле <code>key_articles</code> зарезервировать сразу.</li>
+</ul>
+<div class="out">Результат: <code>orp-data.v2.json</code> с готовыми связями, движку не нужно ничего вычислять.</div>
+</div>
+
+<div class="phase">
+<div class="ph"><h3>Фаза 2. Карточка модуля как учебная единица</h3><span class="tag">2–3 дня · ядро замысла руководителя</span></div>
+<p>Порядок блоков берётся из пакета: тема, дата лекции, материалы, семинар, клинические задачи, тест, практический навык, связанные ресурсы.</p>
+<ul>
+<li>Блок «Что читать»: рекомендации РФ и международные, учебники, источники к вопросам, ключевые статьи, всё со ссылками.</li>
+<li>Блок «Инструменты и симуляторы»: названия, назначение, ссылка, короткая заметка «чему учит».</li>
+<li>Блок «Практика»: карточки связанных VP / OSCE / TB с кнопкой запуска прямо из модуля.</li>
+<li>Глубокие ссылки <code>?module=M07</code> и <code>#vp=VP-01</code>, чтобы из расписания и рассылок вести в конкретное место.</li>
+</ul>
+<div class="out">Результат: открыв модуль, ординатор видит всё, что нужно на неделю, без блужданий по вкладкам.</div>
+</div>
+
+<div class="phase">
+<div class="ph"><h3>Фаза 3. Вернуть VP, OSCE, Tumor Board, аттестацию</h3><span class="tag">1–2 дня · движки уже написаны</span></div>
+<ul>
+<li>Перенести из пакета V4 функции <code>startVP</code>, <code>openOSCE</code>, <code>startTB</code> в движок на GitHub, добавить три вкладки.</li>
+<li>Страница «Итоговая аттестация» из файла 09 как отдельная страница Members.</li>
+<li>Пробный экзамен: 60 вопросов по всем модулям года с итогом и разбором.</li>
+</ul>
+<div class="out">Результат: все шесть учебных зон из замысла работают в личном кабинете.</div>
+</div>
+
+<div class="phase">
+<div class="ph"><h3>Фаза 4. Навигация и вход</h3><span class="tag">1 день · Tilda</span></div>
+<ul>
+<li>Публичная стартовая <code>/ordinatura</code> из файла 07: маршрут программы, счётчики, кнопки «Войти в 1-й год / 2-й год».</li>
+<li>Меню раздела внутри блока: 1-й год | 2-й год | Библиотека | Тесты | VP | OSCE | TB | Аттестация. Внешнее меню Tilda: починить «Расписание» или убрать.</li>
+<li>Переделать вход (кнопка, которую вы назвали кривой): одна кнопка «Личный кабинет», после входа сразу страница года по группе.</li>
+<li>Преподавательский режим: отдельная группа Members с доступом к эталонам OSCE и чек-листам TB, для ординатора эталон открывается после ответа.</li>
+</ul>
+<div class="out">Результат: понятный маршрут для новичка, видео-инструкция не нужна.</div>
+</div>
+
+<div class="phase">
+<div class="ph"><h3>Фаза 5. Проверка и гайд</h3><span class="tag">1 день · повторяется после каждого релиза</span></div>
+<ul>
+<li>Бот-тестер на Playwright: логин, все 61 модуль, тест по каждому, один проход VP, OSCE, TB, проверка ошибок консоли и высоты блока.</li>
+<li>Ручная проверка на iPhone Safari: прокрутка, раскрытие панелей, внешние ссылки.</li>
+<li>Гайд «Как пользоваться разделом» генерируется из скриншотов бота, публикуется на стартовой.</li>
+</ul>
+<div class="out">Результат: после любой правки за 10 минут известно, что ничего не сломалось.</div>
+</div>
+
+<h2>6. Что нужно от вас и от руководителя</h2>
+<ul>
+<li><b>От вас:</b> ключи Tilda API, доступ в проект и Members, GitHub-аккаунт для форка. Решение: оставляем схему «данные на GitHub» (рекомендую) или возвращаем монолит.</li>
+<li><b>От Михаила Юрьевича:</b> файл с ключевыми статьями по модулям; подтверждение, что дата лекции в карточке относится к набору 2026 года; список международных рекомендаций, которые он хочет видеть в библиотеке; решение о преподавательском режиме.</li>
+<li><b>От исполнительницы (по возможности):</b> права на репозиторий или хотя бы подтверждение, что текущий инлайн-скрипт в T123 отличается от того, что лежит в GitHub (на сайте есть «Закрыть модуль» и фильтр года, в репозитории нет).</li>
+</ul>
+
+<p class="small">Файлы аудита: пакет руководителя в папке «Сайт для МЮ», транскрипт разговора от 10.09.2026, дампы живых страниц и скачанные <code>orp-data.json</code> и <code>orp-engine.js</code> в рабочей папке сессии.</p>
+</div>

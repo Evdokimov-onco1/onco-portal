@@ -1,0 +1,73 @@
+<div id="oncoResidencyPortal">
+  <div class="orp-wrap">
+    <section class="orp-hero">
+      <div class="orp-eyebrow">Кафедра онкологии</div>
+      <h1 class="orp-h1">Ординатура по онкологии</h1>
+      <p class="orp-lead">Двухлетняя учебная среда: модули, библиотека, тесты, виртуальные пациенты, OSCE и Tumor Board.</p>
+    </section>
+
+    <nav class="orp-nav" aria-label="Разделы ординатуры">
+      <button class="orp-navbtn is-active" data-panel="modules">Модули</button>
+      <button class="orp-navbtn" data-panel="library">Библиотека</button>
+      <button class="orp-navbtn" data-panel="tests">Банк тестов</button>
+      <button class="orp-navbtn" data-panel="vp">Виртуальные пациенты</button>
+      <button class="orp-navbtn" data-panel="osce">OSCE</button>
+      <button class="orp-navbtn" data-panel="tb">Tumor Board</button>
+    </nav>
+
+    <section class="orp-panel is-active" data-panel-id="modules">
+      <div class="orp-sectionhead"><h2 class="orp-h2">Модули</h2><span class="orp-muted">61 модуль</span></div>
+      <div class="orp-controls">
+        <button class="orp-pill is-active" data-year="all">Все</button>
+        <button class="orp-pill" data-year="1">1-й год</button>
+        <button class="orp-pill" data-year="2">2-й год</button>
+        <input class="orp-input orp-grow" id="orpModuleSearch" type="search" placeholder="Поиск по модулю">
+      </div>
+      <div class="orp-grid" id="orpModuleGrid"></div>
+      <div id="orpModuleRunner"></div>
+    </section>
+
+    <section class="orp-panel" data-panel-id="library">
+      <div class="orp-sectionhead"><h2 class="orp-h2">Библиотека</h2><span class="orp-muted">Единый каталог</span></div>
+      <div class="orp-controls">
+        <select class="orp-input" id="orpLibType">
+          <option value="rf_guidelines">Клинические рекомендации РФ</option>
+          <option value="books_guides">Учебники и руководства</option>
+          <option value="clinical_tools">Клинические инструменты</option>
+          <option value="simulators">Внешние симуляторы</option>
+        </select>
+        <input class="orp-input orp-grow" id="orpLibSearch" type="search" placeholder="Поиск по библиотеке">
+      </div>
+      <div class="orp-grid" id="orpLibGrid"></div>
+    </section>
+
+    <section class="orp-panel" data-panel-id="tests">
+      <div class="orp-sectionhead"><h2 class="orp-h2">Банк тестов</h2><span class="orp-muted">633 задания</span></div>
+      <div class="orp-controls">
+        <select class="orp-input orp-grow" id="orpTestModule"><option value="">Все модули</option></select>
+        <select class="orp-input" id="orpTestN"><option>5</option><option>10</option><option>20</option></select>
+        <button class="orp-primary" id="orpStartTest">Начать тест</button>
+      </div>
+      <div id="orpTestBox"></div>
+    </section>
+
+    <section class="orp-panel" data-panel-id="vp">
+      <div class="orp-sectionhead"><h2 class="orp-h2">Виртуальные пациенты</h2><span class="orp-muted">12 ветвящихся сценариев</span></div>
+      <div class="orp-grid" id="orpVpGrid"></div>
+      <div id="orpVpRunner"></div>
+    </section>
+
+    <section class="orp-panel" data-panel-id="osce">
+      <div class="orp-sectionhead"><h2 class="orp-h2">OSCE</h2><span class="orp-muted">12 станций</span></div>
+      <div class="orp-grid" id="orpOsceGrid"></div>
+      <div id="orpOsceRunner"></div>
+    </section>
+
+    <section class="orp-panel" data-panel-id="tb">
+      <div class="orp-sectionhead"><h2 class="orp-h2">Tumor Board</h2><span class="orp-muted">8 поэтапных кейсов</span></div>
+      <div class="orp-grid" id="orpTbGrid"></div>
+      <div id="orpTbRunner"></div>
+    </section>
+  </div>
+</div>
+
