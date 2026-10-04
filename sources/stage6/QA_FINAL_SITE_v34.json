@@ -1,0 +1,15 @@
+{
+  "status": "FINAL_SITE_ROUTE_GATE_CLOSED",
+  "module_docx_count": 61,
+  "calendar_rows_in_index": 63,
+  "local_links_total": 65,
+  "broken_local_links": 0,
+  "bank_modules": 61,
+  "bank_questions": 633,
+  "bank_invalid_keys": 0,
+  "bank_generic_search_urls": 0,
+  "index_has_bank_route": true,
+  "index_has_calendar_route": true,
+  "dates_modified": false,
+  "excluded_sync_branch": "modules_publication_v7-v13"
+}

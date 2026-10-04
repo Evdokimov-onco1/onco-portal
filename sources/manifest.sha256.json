@@ -1,0 +1,661 @@
+{
+  "snapshot_date": "2026-10-04",
+  "description": "Immutable input snapshot for the existing V4 build; update intentionally with source revisions.",
+  "files": [
+    {
+      "path": "sources/stage6/PUBLICATION_MANIFEST_FINAL_STAGE6_v34.json",
+      "bytes": 753,
+      "sha256": "3da13940408f403fcc7e78c4db3bff397e943740177ec61f86becf62acc89cec"
+    },
+    {
+      "path": "sources/stage6/QA_FINAL_SITE_v34.json",
+      "bytes": 416,
+      "sha256": "36b41b19d5d761dce2a79faca028145c7579b650c35e71fa13a514be65f44215"
+    },
+    {
+      "path": "sources/stage6/README_FINAL_2026-09-11.txt",
+      "bytes": 1299,
+      "sha256": "0e619a52cdf5794e80425473b413e3c34231844186d5ba9367a0880d4248f9fd"
+    },
+    {
+      "path": "sources/stage6/README_FINAL_SITE_v34.txt",
+      "bytes": 458,
+      "sha256": "b6181ed8ce134e032fb9ba253aec83dcf857f37487926633375cea812c0c9ed4"
+    },
+    {
+      "path": "sources/stage6/Tilda_Банк_тестов_FINAL_v34.html",
+      "bytes": 806696,
+      "sha256": "446e0204135ddb45b342b6cc3a543b86a853a9023ab50060cf8e09c374907d98"
+    },
+    {
+      "path": "sources/stage6/index.html",
+      "bytes": 36163,
+      "sha256": "904ee7ac6d6e04efff1a281ca117ceed46b0f6133727cc32a75fb9fe0e7ff540"
+    },
+    {
+      "path": "sources/stage6/М-01_Биология_злокачественных_опухолей.md",
+      "bytes": 28666,
+      "sha256": "940e85a0cd1e3cfa1f5c6cbf891f2c26d5bb0fec205db98beb224f004a118fd5"
+    },
+    {
+      "path": "sources/stage6/М-02_Этиология_эпидемиология_скрининг_профилактика.md",
+      "bytes": 30598,
+      "sha256": "1ca589640ea21418ebdf1a5eb5913e8d4f5a9c3443e07a20a79ddec15ca44f7e"
+    },
+    {
+      "path": "sources/stage6/М-03_Иммунологические_аспекты_в_онкологии.md",
+      "bytes": 31758,
+      "sha256": "5de00be35b86969d5d46a7ed7fa8d850a546461e70d68412e900e66b7f5178bc"
+    },
+    {
+      "path": "sources/stage6/М-04_Лекарственная_терапия_классификация_и_принципы.md",
+      "bytes": 31456,
+      "sha256": "dbd3bbf19c01d283561e8ff711336bf712e49fff12f6df49ae7a8068f8dc289a"
+    },
+    {
+      "path": "sources/stage6/М-05_Острые_лейкозы_и_МДС.md",
+      "bytes": 58971,
+      "sha256": "055859954363e4500c07c97610b78c5e1f39411890fdd498ab64161b3d596305"
+    },
+    {
+      "path": "sources/stage6/М-06_Хронический_миелолейкоз_и_хронический_лимфолейкоз.md",
+      "bytes": 53846,
+      "sha256": "09e84b8e83661d5292efc88b4bf442cc9f910ac4f87ae9324e9b06b610d45ec1"
+    },
+    {
+      "path": "sources/stage6/М-07_Осложнения_системной_терапии_I_гематологическая_токсичность.md",
+      "bytes": 32673,
+      "sha256": "d2b7040ae4ad45359a657830588c501c95c9ad5a3e2a06f7d601303722839866"
+    },
+    {
+      "path": "sources/stage6/М-08_Опухоли_головы_и_шеи.md",
+      "bytes": 32546,
+      "sha256": "69f7c0435cde65d4906b7f446d2ee04400a4349746382eed707640146e08c048"
+    },
+    {
+      "path": "sources/stage6/М-09_Рак_молочной_железы_ранние_стадии.md",
+      "bytes": 38607,
+      "sha256": "e96da57b06334213293df82f32a81963ed628a2e837d1c3fb8eccaa454141dc1"
+    },
+    {
+      "path": "sources/stage6/М-10_Рак_молочной_железы_метастатический.md",
+      "bytes": 35269,
+      "sha256": "1652c45599f953c9f9b5896d1da3bb25912839c29a25c5baa3eb73ff60f7f4b8"
+    },
+    {
+      "path": "sources/stage6/М-11_Клиническое_стадирование_I_система_TNM.md",
+      "bytes": 29204,
+      "sha256": "93f1d6cc5ca6e38acf8e3dbb00b88144da1244892fccb859fb24af8f0599bd1a"
+    },
+    {
+      "path": "sources/stage6/М-12_Первичные_опухоли_ЦНС.md",
+      "bytes": 33946,
+      "sha256": "f46dba0f1de2daae3ae4b88abff3a30c0cc8e6302af17c9e83f2e5cd088a134f"
+    },
+    {
+      "path": "sources/stage6/М-13_Метастатическое_поражение_головного_мозга.md",
+      "bytes": 33222,
+      "sha256": "133cba42724f1f38ee87d28b6103cecc1821b0e38996a087b7bc884071692fa4"
+    },
+    {
+      "path": "sources/stage6/М-14_Осложнения_системной_терапии_II.md",
+      "bytes": 38281,
+      "sha256": "51e8c806d9047ec24ce6dba43bbb425c77abaf8c8192cec8dc0a9363ed9375c7"
+    },
+    {
+      "path": "sources/stage6/М-15_Клиническое_стадирование_II_FIGO_Lugano_BCLC_IGCCCG.md",
+      "bytes": 33979,
+      "sha256": "09e1679c07e3f209c4e294034f499aa3f997e509299c2badf97eea555e6bebd8"
+    },
+    {
+      "path": "sources/stage6/М-16_Патоморфология_в_онкологии.md",
+      "bytes": 36008,
+      "sha256": "108061d9ada547351d18e3fe72a6d344a7ca2efc6fe26b61223515b74274f3e7"
+    },
+    {
+      "path": "sources/stage6/М-17_Герминогенные_опухоли_и_рак_полового_члена.md",
+      "bytes": 37100,
+      "sha256": "2b38d96be092cd5b91522584a9e4020dbb5bb05a5e698ba5dcf94925a07f3c82"
+    },
+    {
+      "path": "sources/stage6/М-18_Лимфома_Ходжкина.md",
+      "bytes": 33572,
+      "sha256": "75ef51da1ca73f1e2320d47a8c2791e45f7b82d3a517f3d5cfa1c5e8d627588b"
+    },
+    {
+      "path": "sources/stage6/М-19_Молекулярная_генетика_и_трансляционная_медицина.md",
+      "bytes": 35066,
+      "sha256": "5ff241b37b5565e72f9ba90b05e628e5c821047bd5413e6721f9649e63e756d1"
+    },
+    {
+      "path": "sources/stage6/М-20_Основы_медицинской_статистики.md",
+      "bytes": 36178,
+      "sha256": "1eee0f9d2dd98398d97b26dedfcdaa7f6d761adcb79dbfc472b610425aa8b2ed"
+    },
+    {
+      "path": "sources/stage6/М-21_Неходжкинские_лимфомы.md",
+      "bytes": 36397,
+      "sha256": "a6be750687b6fe636756e5c3d0d4f173f7e0782a9a5a771aaf639772434a84ce"
+    },
+    {
+      "path": "sources/stage6/М-22_Множественная_миелома_и_макроглобулинемия.md",
+      "bytes": 36638,
+      "sha256": "47f9059a1fe344907fb6f36cb3f714c6e611fc1bee630f4c368db4f076a235db"
+    },
+    {
+      "path": "sources/stage6/М-23_Хирургия_в_онкологии.md",
+      "bytes": 34243,
+      "sha256": "b6e4ce2ca7f0b14a936f4ba00057d640803dba7cf2a78e3b556d56ef3bf9e155"
+    },
+    {
+      "path": "sources/stage6/М-24_Методология_клинических_исследований.md",
+      "bytes": 35421,
+      "sha256": "854d920ae78a2f3a7f1a58eaa7c4996dc93862c005ba1b6d7cd93d7fecc58001"
+    },
+    {
+      "path": "sources/stage6/М-25_Рак_почки.md",
+      "bytes": 32818,
+      "sha256": "67ebcb4ab9d6024b8f8ff88c0cf3546027ab9b1c83c5c0fe97407f4a3ce8abb8"
+    },
+    {
+      "path": "sources/stage6/М-26_Уротелиальный_рак.md",
+      "bytes": 35126,
+      "sha256": "14a5407b7a88d0fa2dfdbfd4887c3ef365259100173b1546dc45f40c04805d7a"
+    },
+    {
+      "path": "sources/stage6/М-27_Метастатический_колоректальный_рак.md",
+      "bytes": 46978,
+      "sha256": "ac89dd74effe465c3e82a89ffcd5fada4533bfca3ce36486b116679220c0ec4b"
+    },
+    {
+      "path": "sources/stage6/М-28_Коммуникация_с_пациентом.md",
+      "bytes": 34475,
+      "sha256": "880a16e3a35de0464abe9873b6d4f6b2edfef85ed683d8d6d971a31f75eb8d29"
+    },
+    {
+      "path": "sources/stage6/М-29_Лабораторная_медицина_и_опухолевые_маркёры.md",
+      "bytes": 35213,
+      "sha256": "09967a3c0685f5f1294021cf786c565daa5098aff67d2d3f629715661b6b1c08"
+    },
+    {
+      "path": "sources/stage6/М-30_Лучевая_терапия.md",
+      "bytes": 40718,
+      "sha256": "e4aeb579df961b4fa2e8f7cceb0f8f675cbb7d25c48699c5ae60a91480365bd3"
+    },
+    {
+      "path": "sources/stage6/М-31_НМРЛ_ранние_и_местнораспространённые_стадии.md",
+      "bytes": 38032,
+      "sha256": "cd4ea3754f3a70d1921e28e6ff41d333d6923bcd71029686e7c50cd020921fd1"
+    },
+    {
+      "path": "sources/stage6/М-32_НМРЛ_без_драйверных_мутаций.md",
+      "bytes": 34863,
+      "sha256": "61a74d65c7c64a55dd49efa1b010abe8ed1d55b4d4f4815949648f18cef30653"
+    },
+    {
+      "path": "sources/stage6/М-33_НМРЛ_с_драйверными_мутациями.md",
+      "bytes": 37700,
+      "sha256": "ab25de46ab097017ea1c90728fc83a8e08ce4f0118dff00326445132f21d023f"
+    },
+    {
+      "path": "sources/stage6/М-34_Мелкоклеточный_рак_лёгкого_и_НЭО_лёгкого.md",
+      "bytes": 35451,
+      "sha256": "69bf9b2a8a1c6209bd702c8a371ecbab2ae6084aabdcb9fed1c912d9de6855e2"
+    },
+    {
+      "path": "sources/stage6/М-35_Мезотелиома_тимома_и_рак_тимуса.md",
+      "bytes": 33730,
+      "sha256": "52b9e0095647d3e15c12f451ce6167f14c6bccf49d83849fbcdaaee5b3a66849"
+    },
+    {
+      "path": "sources/stage6/М-36_Рак_пищевода_и_пищеводно-желудочного_перехода.md",
+      "bytes": 32846,
+      "sha256": "d890360658bc0d91fe2867c5653743aba07f38fa1946cefb51e1b73d5f378259"
+    },
+    {
+      "path": "sources/stage6/М-37_Рак_желудка.md",
+      "bytes": 32163,
+      "sha256": "06eab79bc061e211f2db17bf46a2ca831d87caf54e489828eb8055f3270127ef"
+    },
+    {
+      "path": "sources/stage6/М-38_Рак_ободочной_кишки_ранние_стадии.md",
+      "bytes": 33125,
+      "sha256": "78370759497bcb70f335f5666087055641ac20c7c6eb7714850dfc26b61bec65"
+    },
+    {
+      "path": "sources/stage6/М-39_Рак_прямой_кишки_и_анального_канала.md",
+      "bytes": 35090,
+      "sha256": "9d41e060624c4982445061bf72e045c288a253f4775cdbbf20605f11b4754865"
+    },
+    {
+      "path": "sources/stage6/М-40_Рак_поджелудочной_железы_и_ампулярные_раки.md",
+      "bytes": 35366,
+      "sha256": "b6d0dc0fca6f68314a04cc865e30f23f798b0144860f849aeb6885afbb38740b"
+    },
+    {
+      "path": "sources/stage6/М-41_Гепатоцеллюлярный_рак_и_холангиокарцинома.md",
+      "bytes": 33722,
+      "sha256": "0162c16a67b7c348878c541fff5f04a72cfbe521272887e0a4183e3ce51b5318"
+    },
+    {
+      "path": "sources/stage6/М-42_Рак_яичников.md",
+      "bytes": 34739,
+      "sha256": "c47f6c4b38ed563a1a03bf1ddc15a61284995857012b9b822c4e2498f72f617e"
+    },
+    {
+      "path": "sources/stage6/М-43_Рак_эндометрия.md",
+      "bytes": 35019,
+      "sha256": "c1fe7edafa8ad0038c3cd294228661ac04deb8067afbd89b63e36ca362d11fb7"
+    },
+    {
+      "path": "sources/stage6/М-44_Рак_шейки_матки.md",
+      "bytes": 39676,
+      "sha256": "c4b9338b910f16543490393f1fd1289c9094aebf357de0e5be843d3991ce6b48"
+    },
+    {
+      "path": "sources/stage6/М-45_Рак_вульвы_и_трофобластическая_болезнь.md",
+      "bytes": 32519,
+      "sha256": "c4233caefc3c8d39ba58353bfb254d0861afa405fe0e15d24b8ec6d2aa2be579"
+    },
+    {
+      "path": "sources/stage6/М-46_Базальноклеточный_и_плоскоклеточный_рак_кожи.md",
+      "bytes": 33941,
+      "sha256": "a5ea441818f168f05b3c56c4b7abe70a841dca4e2e0c58bd95913fba327ec2c5"
+    },
+    {
+      "path": "sources/stage6/М-47_Меланома_локализованные_стадии.md",
+      "bytes": 33280,
+      "sha256": "6f8480276fdd604f2ec1b8228abff6ef1170579bf5a736264e9eb004d400da69"
+    },
+    {
+      "path": "sources/stage6/М-48_Меланома_метастатическая_и_редкие_формы.md",
+      "bytes": 35699,
+      "sha256": "78fff2df2c5df4bb67f22a71d1e80f775932b87d1a4412f022da2008be097863"
+    },
+    {
+      "path": "sources/stage6/М-49_Саркомы_мягких_тканей.md",
+      "bytes": 35795,
+      "sha256": "b5362f7caa5bbbb2393a87ff8c92a255645648cf9d651cbdd3ab9bd1d84049c3"
+    },
+    {
+      "path": "sources/stage6/М-50_Опухоли_костей_и_метастатическое_поражение_костей.md",
+      "bytes": 35917,
+      "sha256": "e699a6462f322b2809f19c9604e9fa8b7cfaab5e465ef733c9beb14320d1fa8b"
+    },
+    {
+      "path": "sources/stage6/М-51_Гастроинтестинальные_стромальные_опухоли.md",
+      "bytes": 30792,
+      "sha256": "507ab81ec2145e98201fa1dd2ecef16fe23a10b12ecfab83457f285c93b4c924"
+    },
+    {
+      "path": "sources/stage6/М-52_Рак_щитовидной_железы.md",
+      "bytes": 36058,
+      "sha256": "9af64fd1582b2feda7745793559aed6d1d8fbc0ee3ca7652c503a9061380f3da"
+    },
+    {
+      "path": "sources/stage6/М-53_Нейроэндокринные_опухоли.md",
+      "bytes": 36040,
+      "sha256": "b9438a7b19347c1a73cd9e206618f90b12d4b86f5e04ff1696b3e38038180a30"
+    },
+    {
+      "path": "sources/stage6/М-54_Рак_предстательной_железы_локализованный.md",
+      "bytes": 34704,
+      "sha256": "0fa0db97acc3ae92b9a6178371c9bfa8987e1889b2b1f7a32cd7d80cc632ef24"
+    },
+    {
+      "path": "sources/stage6/М-55_Метастатический_рак_предстательной_железы.md",
+      "bytes": 35301,
+      "sha256": "e966df8d036d5968ab18c41e68e680585b60dc9737ec521b7dd7a7fa34a02178"
+    },
+    {
+      "path": "sources/stage6/М-56_Опухоли_из_невыявленного_первичного_очага.md",
+      "bytes": 35068,
+      "sha256": "e0b238cfa83de0acca92cd29de932071c66c03e6d35bd877a1d2b8e7d0b00626"
+    },
+    {
+      "path": "sources/stage6/М-57_Онкология_и_беременность_AYA_фертильность.md",
+      "bytes": 38713,
+      "sha256": "f78ee580359859d94cd5329bb82c33c2354158614efa49ad9cbfcdbb1143930e"
+    },
+    {
+      "path": "sources/stage6/М-58_Гериатрическая_онкология.md",
+      "bytes": 36390,
+      "sha256": "c28754fd3d54582d2b1c0fa29a05f3698eeed94ddea631fcc96b36599e7410b6"
+    },
+    {
+      "path": "sources/stage6/М-59_Паллиативная_помощь_и_обезболивание.md",
+      "bytes": 36914,
+      "sha256": "c0d521ed1857a8ca0504a0b7b060721e5b86b05c0a6aa6a0259a0a31319b08bd"
+    },
+    {
+      "path": "sources/stage6/М-60_Правовые_и_организационные_аспекты.md",
+      "bytes": 35549,
+      "sha256": "6efa6fab0331b2d19f81e16940c5342bfed52cc0188201525457b3beacbe8557"
+    },
+    {
+      "path": "sources/stage6/М-61_Подготовка_к_аккредитации.md",
+      "bytes": 34615,
+      "sha256": "7b7af0fd3c321c7ee1aa156ea6a2408595817f78605c638015f1aeb079627eb9"
+    },
+    {
+      "path": "archive/stage6-v34/STAGE6_v34_FINALQA.zip",
+      "bytes": 1734751,
+      "sha256": "9d941aeb763fb9b08eadcf2fce3e5884b8f4377484d869886cbbd67e31cd16e8"
+    },
+    {
+      "path": "archive/supervisor-package-v4/ONCO_RESIDENCY_PORTAL_DATA_V3_INTERACTIVE.json",
+      "bytes": 1381628,
+      "sha256": "9fdb82b51860c30e12f26e4f1dd84a6a3c96d310077bf3a248734e10993aded5"
+    },
+    {
+      "path": "modules/Календарный_план_2026-2027_с_датами.docx",
+      "bytes": 22625,
+      "sha256": "129d845fb8186fd48998d1f3c59f2ed4f527dfa613450cd7f31784e24069507d"
+    },
+    {
+      "path": "modules/М-01_Биология_злокачественных_опухолей.docx",
+      "bytes": 20170,
+      "sha256": "0f4a1afa50aef539fd3f9f5672b49a798078512f2a937c9f20548bb5ec6318b0"
+    },
+    {
+      "path": "modules/М-02_Этиология_эпидемиология_скрининг_профилактика.docx",
+      "bytes": 20854,
+      "sha256": "202ed65738ea3ff10dec8f2d970e619f8fb88199a1b809f22057d5babc03c5e6"
+    },
+    {
+      "path": "modules/М-03_Иммунологические_аспекты_в_онкологии.docx",
+      "bytes": 20692,
+      "sha256": "05f89359aeb2bb47e08fd86b35b96ac8b24c32ee669d56abea10924df449f5cb"
+    },
+    {
+      "path": "modules/М-04_Лекарственная_терапия_классификация_и_принципы.docx",
+      "bytes": 21222,
+      "sha256": "a678532be647ae452b9d1bfc04792bc884b0fa19c27b1e2238ba69a5c509af41"
+    },
+    {
+      "path": "modules/М-05_Острые_лейкозы_и_МДС.docx",
+      "bytes": 31407,
+      "sha256": "eb072852e60acea3c724c2e4f1f71ebeda595b8af38293b2684c9ef94e693b92"
+    },
+    {
+      "path": "modules/М-06_Хронический_миелолейкоз_и_хронический_лимфолейкоз.docx",
+      "bytes": 29161,
+      "sha256": "901afaabb658bc5d7a0ca1c4932fc192c9a5f1d39ba26057e8ba1e53ec205f88"
+    },
+    {
+      "path": "modules/М-07_Осложнения_системной_терапии_I_гематологическая_токсичность.docx",
+      "bytes": 20759,
+      "sha256": "a1e3928bf5d2206c8b7d2fcc5c99e74d56748f208d60ad5c3b30f0eedd971333"
+    },
+    {
+      "path": "modules/М-08_Опухоли_головы_и_шеи.docx",
+      "bytes": 21237,
+      "sha256": "baeb0e51d242f4af6337e152a4243b0da8eac457a54bdd8e196c62cbe942532f"
+    },
+    {
+      "path": "modules/М-09_Рак_молочной_железы_ранние_стадии.docx",
+      "bytes": 23305,
+      "sha256": "32b06d68427ea5c4398aeabf432deef84384df65cfb3a12eaa74e433782edf4d"
+    },
+    {
+      "path": "modules/М-10_Рак_молочной_железы_метастатический.docx",
+      "bytes": 22485,
+      "sha256": "627bda879846c4a21dc532adf784803ff954f51eea1c1cde7917f333e5a219aa"
+    },
+    {
+      "path": "modules/М-11_Клиническое_стадирование_I_система_TNM.docx",
+      "bytes": 19875,
+      "sha256": "2eda50531efde1dc41de1c91ce089b79960f92a01d3a3e37518855bce99ded8c"
+    },
+    {
+      "path": "modules/М-12_Первичные_опухоли_ЦНС.docx",
+      "bytes": 21671,
+      "sha256": "3f87b954188ac021e32f14890d854f9d6ee84296d64678257c3a210136f4224e"
+    },
+    {
+      "path": "modules/М-13_Метастатическое_поражение_головного_мозга.docx",
+      "bytes": 20890,
+      "sha256": "f06d4396982049487b7ca44ff91d7c823c7707cdc1db0aa449db84e085e3ca5f"
+    },
+    {
+      "path": "modules/М-14_Осложнения_системной_терапии_II.docx",
+      "bytes": 23116,
+      "sha256": "5b3be7bb55c39329db16e12472ad27ff2e51813df7b85aaa2d43838072df22b3"
+    },
+    {
+      "path": "modules/М-15_Клиническое_стадирование_II_FIGO_Lugano_BCLC_IGCCCG.docx",
+      "bytes": 21716,
+      "sha256": "09da0b0cb6dd504707e5ff45f9035ef5cbdfaaf67efc9949cf01800fccc333d2"
+    },
+    {
+      "path": "modules/М-16_Патоморфология_в_онкологии.docx",
+      "bytes": 21959,
+      "sha256": "748085e96f650903bc2199c7ad0aeb9e2ca8ff29eb99d375be668b1e2d4d9197"
+    },
+    {
+      "path": "modules/М-17_Герминогенные_опухоли_и_рак_полового_члена.docx",
+      "bytes": 22755,
+      "sha256": "2beb20d63382790d11a0453a44d02abe4212c4e56df82711f58d8c0bda3c4ecb"
+    },
+    {
+      "path": "modules/М-18_Лимфома_Ходжкина.docx",
+      "bytes": 21706,
+      "sha256": "23944f0626477d350258fe85d7af69a9721b490a9a273c388bb2709af272be82"
+    },
+    {
+      "path": "modules/М-19_Молекулярная_генетика_и_трансляционная_медицина.docx",
+      "bytes": 21975,
+      "sha256": "1c8dae80d30d1ba35d57d46689508cd38e4778306d472fdffdcc82ca38da3ea5"
+    },
+    {
+      "path": "modules/М-20_Основы_медицинской_статистики.docx",
+      "bytes": 21805,
+      "sha256": "2ac443407faf0fd88aac0080113227773839a7deb9cd4b119a6bad9e6c84f421"
+    },
+    {
+      "path": "modules/М-21_Неходжкинские_лимфомы.docx",
+      "bytes": 22563,
+      "sha256": "c5f77b50f8a88fbc37144a89d0021dae9ce83b4ae0850df96e63c7b5448702bd"
+    },
+    {
+      "path": "modules/М-22_Множественная_миелома_и_макроглобулинемия.docx",
+      "bytes": 22698,
+      "sha256": "e15f8ec2051d3d79e31da22c1fa1fe15cb5fceb92c0b721c14861bf863e4fd01"
+    },
+    {
+      "path": "modules/М-23_Хирургия_в_онкологии.docx",
+      "bytes": 21939,
+      "sha256": "4afe1cd371c6e1776fdf1c6a29590406afc8dc25f140538211604358cae6da75"
+    },
+    {
+      "path": "modules/М-24_Методология_клинических_исследований.docx",
+      "bytes": 21781,
+      "sha256": "fcbe7ebef5f85701f1a271430198ff838eea11876144b349de0f5a92fce8800c"
+    },
+    {
+      "path": "modules/М-25_Рак_почки.docx",
+      "bytes": 21022,
+      "sha256": "083356f0d2023a4e8427fb1f5043881c859b7be984d326d97c478e64201e7698"
+    },
+    {
+      "path": "modules/М-26_Уротелиальный_рак.docx",
+      "bytes": 21649,
+      "sha256": "88b281bbf3cd3f253525b8310f0234c4cee91bfe04990ef9fb0496ade71a8964"
+    },
+    {
+      "path": "modules/М-27_Метастатический_колоректальный_рак.docx",
+      "bytes": 27630,
+      "sha256": "4275df01f4a74bdf61361df0fc708634f0c36298b4a6a5a3780f06a30931145a"
+    },
+    {
+      "path": "modules/М-28_Коммуникация_с_пациентом.docx",
+      "bytes": 21550,
+      "sha256": "1ea974d32775783ddf6d64402cce79cd31399248376ef916804ffb80c4ae92fb"
+    },
+    {
+      "path": "modules/М-29_Лабораторная_медицина_и_опухолевые_маркёры.docx",
+      "bytes": 21895,
+      "sha256": "d038a1ca88b4bd2f147df3205c012e617ac3ec40179b810147583f06cadfd27a"
+    },
+    {
+      "path": "modules/М-30_Лучевая_терапия.docx",
+      "bytes": 24227,
+      "sha256": "65520dca6c3060354bf21c3ba228a31657d22b825c7f98f3ba07f9af0cab03a2"
+    },
+    {
+      "path": "modules/М-31_НМРЛ_ранние_и_местнораспространённые_стадии.docx",
+      "bytes": 22617,
+      "sha256": "bd237aeaf78a684c5d038ace7b118e44182cb98dbe3384530a697f64e334ab37"
+    },
+    {
+      "path": "modules/М-32_НМРЛ_без_драйверных_мутаций.docx",
+      "bytes": 22099,
+      "sha256": "fc3dea40c37eac6b665ab3fc5f2651d5df9aa8d5b18d6d7a8c1304f7a98e6945"
+    },
+    {
+      "path": "modules/М-33_НМРЛ_с_драйверными_мутациями.docx",
+      "bytes": 23588,
+      "sha256": "3a3c52bbbfc8c04bf583b9182def4c53950b3debdd164da09a1e8e7b82386b18"
+    },
+    {
+      "path": "modules/М-34_Мелкоклеточный_рак_лёгкого_и_НЭО_лёгкого.docx",
+      "bytes": 21868,
+      "sha256": "791a2063bdb9afff0c808bda36dbafe4e367f225f1bf749578695c357bd63828"
+    },
+    {
+      "path": "modules/М-35_Мезотелиома_тимома_и_рак_тимуса.docx",
+      "bytes": 21353,
+      "sha256": "895b187a1ec9724d1150b7d44cd581c1eb6ff14343aecebaaa5ac1fa20381d96"
+    },
+    {
+      "path": "modules/М-36_Рак_пищевода_и_пищеводно-желудочного_перехода.docx",
+      "bytes": 20806,
+      "sha256": "88dfd03d7b6db6627afe5750fd80af6a09fc5a73f90522956747720a2544d3bf"
+    },
+    {
+      "path": "modules/М-37_Рак_желудка.docx",
+      "bytes": 21368,
+      "sha256": "2d32489ebcb66172cc321fd75fcf32c14e15ca9e67b68cca5f18d0edb9d22bb2"
+    },
+    {
+      "path": "modules/М-38_Рак_ободочной_кишки_ранние_стадии.docx",
+      "bytes": 21077,
+      "sha256": "f3b893d3be045cf939e72520a08b0047c229722e4347b211491df2a12fb484fd"
+    },
+    {
+      "path": "modules/М-39_Рак_прямой_кишки_и_анального_канала.docx",
+      "bytes": 21461,
+      "sha256": "cbbe4bd6fe172ef14fb7821816b1fcf431a34a6376633535dc5d8e0d3145b4bb"
+    },
+    {
+      "path": "modules/М-40_Рак_поджелудочной_железы_и_ампулярные_раки.docx",
+      "bytes": 21515,
+      "sha256": "0b81376c12084e4e89f199a5bc8369c0fb2c828685e411a34ae75c0a53ba465e"
+    },
+    {
+      "path": "modules/М-41_Гепатоцеллюлярный_рак_и_холангиокарцинома.docx",
+      "bytes": 21353,
+      "sha256": "79feb8d2302c0543c07a6e032e01ec91c879549f6b21556cacac50017e1ee6a8"
+    },
+    {
+      "path": "modules/М-42_Рак_яичников.docx",
+      "bytes": 21673,
+      "sha256": "49f44cd08c477f86d92539e8747ab3a2a7ba49e9112d2a98fd904197747bfbd1"
+    },
+    {
+      "path": "modules/М-43_Рак_эндометрия.docx",
+      "bytes": 21054,
+      "sha256": "d700df78a279cd1bfb56b96e5646cd4bd8bef2d15d2ba753f4d6f5401865baee"
+    },
+    {
+      "path": "modules/М-44_Рак_шейки_матки.docx",
+      "bytes": 23638,
+      "sha256": "4c382d7956d2d87c7b3734addc0b1a47a2ed5e5ca417ef4eca40f3472f6ce1bb"
+    },
+    {
+      "path": "modules/М-45_Рак_вульвы_и_трофобластическая_болезнь.docx",
+      "bytes": 20708,
+      "sha256": "11cf4b96968995a236871061ef8ad91fb0ddd9600f130d5ca02869cb996f03df"
+    },
+    {
+      "path": "modules/М-46_Базальноклеточный_и_плоскоклеточный_рак_кожи.docx",
+      "bytes": 20850,
+      "sha256": "bbc42f002fae4100df1df2bfa14c3d90853f452a29205bbfe47fa624393fe0f4"
+    },
+    {
+      "path": "modules/М-47_Меланома_локализованные_стадии.docx",
+      "bytes": 21360,
+      "sha256": "8de6f53a20226148df37267310f049d9def16e759a18c66d96b0439c8d9d380e"
+    },
+    {
+      "path": "modules/М-48_Меланома_метастатическая_и_редкие_формы.docx",
+      "bytes": 21689,
+      "sha256": "ca61b9fed29e553dc36f30e035d4b4f2127b210956eea9304cf212e1f2261012"
+    },
+    {
+      "path": "modules/М-49_Саркомы_мягких_тканей.docx",
+      "bytes": 21727,
+      "sha256": "6225fbc5244a93f6af2544d63befabd9a122377a286e43bd4979d4f79459b185"
+    },
+    {
+      "path": "modules/М-50_Опухоли_костей_и_метастатическое_поражение_костей.docx",
+      "bytes": 21805,
+      "sha256": "d578b295b0c9e1d70b9d617169a52a72a820b1a1cbc5a6bae78ee077423d8538"
+    },
+    {
+      "path": "modules/М-51_Гастроинтестинальные_стромальные_опухоли.docx",
+      "bytes": 20325,
+      "sha256": "802f8450b6d9ed2e1eba7277b8cf2e1917253b15d760f6ef5ada07d7204ebf6b"
+    },
+    {
+      "path": "modules/М-52_Рак_щитовидной_железы.docx",
+      "bytes": 21732,
+      "sha256": "95e896fcc08a5013720cae77d74dbc04a5ba1941c4d5b0a6d78989abef4cf165"
+    },
+    {
+      "path": "modules/М-53_Нейроэндокринные_опухоли.docx",
+      "bytes": 21377,
+      "sha256": "4de19e983fe70ecc3e18027dafb70d837b83bbb05c5fd74dd03405a40789de2b"
+    },
+    {
+      "path": "modules/М-54_Рак_предстательной_железы_локализованный.docx",
+      "bytes": 21431,
+      "sha256": "d03e3976e11f3f2b95de86db7f032c146fcba921ca9579b0270bab69f0ae828e"
+    },
+    {
+      "path": "modules/М-55_Метастатический_рак_предстательной_железы.docx",
+      "bytes": 21607,
+      "sha256": "a8983f7990a0057d7cf1a3643f1ec7fc2347068343dd1d3c5c5447e7565827c7"
+    },
+    {
+      "path": "modules/М-56_Опухоли_из_невыявленного_первичного_очага.docx",
+      "bytes": 20824,
+      "sha256": "0a79b56bd37c94fdee3c7feb857b65ec45a29c4d836312b0584e01a142fc5161"
+    },
+    {
+      "path": "modules/М-57_Онкология_и_беременность_AYA_фертильность.docx",
+      "bytes": 22829,
+      "sha256": "f4fd765385504a7be2efadc40bf780479840e43202255a5dec3bf5e0bea4197a"
+    },
+    {
+      "path": "modules/М-58_Гериатрическая_онкология.docx",
+      "bytes": 21682,
+      "sha256": "413347a00b7bac9714caa3270274ddf8c6b30dd3533cb670b4ea54410e4f6ea6"
+    },
+    {
+      "path": "modules/М-59_Паллиативная_помощь_и_обезболивание.docx",
+      "bytes": 22430,
+      "sha256": "b670632d36b442d9e5a65b77c2663b78080535b5737098504e80bc8a980c8053"
+    },
+    {
+      "path": "modules/М-60_Правовые_и_организационные_аспекты.docx",
+      "bytes": 21506,
+      "sha256": "8d90c5259df4962f1cedcd817923dd9cc586e06202b5a5786a0be4856e5ad8c5"
+    },
+    {
+      "path": "modules/М-61_Подготовка_к_аккредитации.docx",
+      "bytes": 21945,
+      "sha256": "bbf408ef3f66f1497364c3c96691c6a732fb3e42c34d4f9b1ce30ce94b2f3644"
+    }
+  ]
+}
