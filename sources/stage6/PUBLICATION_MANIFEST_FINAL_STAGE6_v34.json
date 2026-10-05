@@ -1,0 +1,20 @@
+{
+  "status": "FINAL_PACKAGE_QA",
+  "module_source": "stage6",
+  "module_files": 61,
+  "stage6_dir_vs_stage6_zip_mismatches": 0,
+  "bank_version": "v34",
+  "bank_modules": 61,
+  "bank_questions": 633,
+  "bank_invalid_keys": 0,
+  "bank_generic_search_urls": 0,
+  "tilda_payload_identical_to_bank_v34": true,
+  "calendar_dates_changed": false,
+  "index_local_links": 65,
+  "index_broken_local_links": 0,
+  "quarantined_v7_v13_artifacts_included": 0,
+  "sha256_stage6_zip": "f8a17b5aedd88cd92d8057909ee31b11f746739a55e2ec0b9895b4745911bd49",
+  "sha256_bank_v34": "c49218840ce6640d011a8dfb8ea2bcb3c7339b5f1f1ec2c73076e877a2ff0377",
+  "sha256_calendar": "129d845fb8186fd48998d1f3c59f2ed4f527dfa613450cd7f31784e24069507d",
+  "all_release_gates_closed": true
+}

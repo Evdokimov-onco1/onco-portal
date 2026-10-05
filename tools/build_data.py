@@ -3,10 +3,10 @@
 
   1. базовый JSON руководителя (V3, 31.08.2026): модули, библиотека, VP, OSCE, Tumor Board;
   2. публикационный комплект stage6 (v34, 10.09.2026): банк тестов, 61 DOCX-модуль, index.html с календарём;
-  3. Markdown-версии DOCX (делает ~/.local/bin/to-md): блок А (что читать), Б2 (задачи), Б3 (вопросы, чек-лист).
+  3. Markdown-версии DOCX из sources/stage6: блок А (что читать), Б2 (задачи), Б3 (вопросы, чек-лист).
 
 Запуск из корня репозитория:
-  python3 tools/build_data.py --stage6 "../stage6" [--out data/orp-data.json]
+  python3 tools/build_data.py --stage6 sources/stage6 [--out data/orp-data.json]
 """
 import argparse, collections, datetime, html, json, re, sys, urllib.parse
 from pathlib import Path
