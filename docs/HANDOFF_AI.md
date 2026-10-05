@@ -1,6 +1,6 @@
 # Handoff для ИИ-ассистента
 
-Актуализировано 04.10.2026. Полная техническая и продуктовая передача находится в [HANDOFF.md](HANDOFF.md). Далее читать [TASKS.md](TASKS.md), [DEVELOPMENT.md](DEVELOPMENT.md), [RELEASE.md](RELEASE.md), [SOURCES.md](SOURCES.md) и корневой [AGENTS.md](../AGENTS.md).
+Актуализировано 05.10.2026. Начальная точка — [MEMORY.md](../MEMORY.md): загрузка в GitHub завершена, PR №1 при проверке 5 октября открыт и не слит. Полная техническая и продуктовая передача находится в [HANDOFF.md](HANDOFF.md). Далее читать [TASKS.md](TASKS.md), [DEVELOPMENT.md](DEVELOPMENT.md), [RELEASE.md](RELEASE.md), [SOURCES.md](SOURCES.md) и корневой [AGENTS.md](../AGENTS.md).
 
 Проект продолжается в существующей архитектуре Tilda + один внешний JSON/JS/CSS. Данные V4: 61 модуль, 633 вопроса, 12 VP, 12 OSCE, 8 TB, 63 занятия. Историческое состояние и состояние опубликованного сайта различать. Приёмник результатов пустой, устойчивого прогресса чтения нет; не выдавать их за готовые функции.
 
