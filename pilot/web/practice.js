@@ -18,8 +18,8 @@ function mergePracticeServerData(d){
  for(const [id,text] of Object.entries(state.edits)){if(text!=='')drafts[id]=text;}
  state.practice={...d,drafts};
 }
-const pStatusText=a=>{const e=pLastEv(a);return e?pDecLabel[e.decision]||e.decision:(a.attempts||[]).length?'Отправлено · ждёт отметки':'Ожидает вашего ответа';};
-const pBadge=a=>{const e=pLastEv(a);return e?`<span class="badge ${esc(e.decision)}">${esc(pDecLabel[e.decision]||e.decision)}</span>`:(a.attempts||[]).length?'<span class="badge">На проверке</span>':'<span class="badge">Не отправлено</span>';};
+const pStatusText=a=>{const e=pLastEv(a);return e?pDecLabel[e.decision]||e.decision:(a.attempts||[]).length?'Отправлено · ждёт отметки':a.kind==='osce'?'Ответ по желанию':'Ожидает вашего ответа';};
+const pBadge=a=>{const e=pLastEv(a);return e?`<span class="badge ${esc(e.decision)}">${esc(pDecLabel[e.decision]||e.decision)}</span>`:(a.attempts||[]).length?'<span class="badge">На проверке</span>':a.kind==='osce'?'<span class="badge">Необязательная практика</span>':'<span class="badge">Не отправлено</span>';};
 function practiceData(){const p=state.practice;return p&&state.module&&p.module===state.module.id?p:null;}
 async function loadPractice(){
  const moduleId=state.module?.id,userId=state.user?.id;
@@ -75,7 +75,7 @@ function pDetail(a){
  const attempts=a.attempts||[];
  const prompts=(a.prompts||[]).map(t=>`<p class="questions text">${esc(t)}</p>`).join('');
  const instr=a.instruction?`<div class="vignette text">${esc(a.instruction)}</div>`:'';
- const note={seminar:'Письменная подготовка к устному разбору: отправьте ответ — преподаватель зафиксирует дату и итог обсуждения на семинаре.',osce:'Письменная подготовка к станции OSCE. Эталон экзаменатора и разбор откроются после отправки вашего ответа.',tumor_board:'Запишите своё решение по данным этого этапа. Следующий этап откроется после отправки.'}[a.kind]||'';
+ const note={seminar:'Письменная подготовка к устному разбору: отправьте ответ — преподаватель зафиксирует дату и итог обсуждения на семинаре.',osce:'OSCE — дополнительная практика по желанию. Можно изучить задание без письменного ответа. Если решите отправить ответ, после него откроются эталон экзаменатора и разбор.',tumor_board:'Запишите своё решение по данным этого этапа. Следующий этап откроется после отправки.'}[a.kind]||'';
  const draft=state.edits[a.id]!==undefined?state.edits[a.id]:(state.practice.drafts||{})[a.id]||'';
  const standard=a.standard?`<details class="model"><summary>Эталон экзаменатора</summary><div class="text">${esc(a.standard)}</div><p class="help">Сравните со своим ответом — отметку в логбуке ставит преподаватель.</p></details>`:(a.kind==='osce'?'<div class="locked">Эталон экзаменатора и разбор откроются после отправки вашего ответа.</div>':'');
  const debrief=a.debrief?`<details class="model"><summary>Разбор после выполнения</summary><div class="text">${esc(a.debrief)}</div></details>`:'';
@@ -127,7 +127,7 @@ function practicePanel(){
   return `<h3>${title} · 0</h3>${expected?'<div class="locked">Задания привязаны к модулю, но не выгружены в логбук — это не подтверждённое исключение из программы, содержание уточняется преподавателем.</div>':`<div class="locked">${miss}</div>`}`;
  };
  const vps=`<h3>Виртуальные пациенты · ${c.virtual_patients.length}</h3>${c.virtual_patients.map(v=>`<details class="reading-group"><summary>${esc(v.id+' · '+v.title)}</summary>${listText(v.objectives)}</details>`).join('')||'<p class="muted">В исходнике не назначены.</p>'}<p class="help">Виртуальные пациенты остаются превью: выполненной письменной практикой этот просмотр не считается.</p>`;
- moduleShell(`<div class="eyebrow">Подготовка и оценка на семинаре</div><h2>OSCE и Tumor Board</h2><p>Письменная подготовка к практическим форматам: преподаватель фиксирует решение, дату занятия и баллы по чек-листу в логбуке.</p>${p.error?`<div class="locked">Логбук практики сейчас недоступен: ${esc(p.error)} Ответы здесь не сохранены — попробуйте позже.</div>`:''}${sec('OSCE',osce,c.osce.length,'OSCE к модулю не привязан. Нужно уточнение содержания; это не подтверждённое исключение из программы.')}${pTbCatalog(tb,state.sel.practice,sel?.kind,c.tumor_board,tbExpected)}${sel?`<div class="activity-detail">${pDetail(sel)}</div>`:''}${vps}<div class="actions"><button id="practiceRetry" type="button">Обновить отметки</button></div>`);
+ moduleShell(`<div class="eyebrow">Подготовка и оценка на семинаре</div><h2>OSCE и Tumor Board</h2><p><strong>OSCE пока необязателен.</strong> Изучайте станции для подготовки; письменный ответ можно отправить по желанию. OSCE не входит в обязательные условия будущего зачёта модуля.</p><p>Отправленные работы преподаватель может оценить на семинаре и отметить в логбуке.</p>${p.error?`<div class="locked">Логбук практики сейчас недоступен: ${esc(p.error)} Ответы здесь не сохранены — попробуйте позже.</div>`:''}${sec('OSCE',osce,c.osce.length,'OSCE к модулю не привязан. Нужно уточнение содержания; это не подтверждённое исключение из программы.')}${pTbCatalog(tb,state.sel.practice,sel?.kind,c.tumor_board,tbExpected)}${sel?`<div class="activity-detail">${pDetail(sel)}</div>`:''}${vps}<div class="actions"><button id="practiceRetry" type="button">Обновить отметки</button></div>`);
  wirePractice(sel);
 }
 async function teacherPracticeQueue(){
