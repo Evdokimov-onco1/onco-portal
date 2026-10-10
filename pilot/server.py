@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 from pilot.store import Store
 from pilot.quiz import QuizStore
 from pilot.materials import Materials, ReadingStore
+from pilot.logbook import Logbook
+from pilot.practice import PREFIX, ApiError, Practice
 
 ROOT = Path(__file__).resolve().parents[1]
 USERS = {
@@ -24,9 +26,8 @@ USERS = {
 }
 
 
-class ApiError(Exception):
-    def __init__(self, status, message):
-        self.status, self.message = status, message
+def clinical(rows):
+    return [r for r in rows if not r['case'].startswith(PREFIX)]
 
 
 class Pilot:
@@ -42,6 +43,8 @@ class Pilot:
                         sort_keys=True).encode()).hexdigest()[:16] for k, m in self.modules.items()}
         # All demo modules are assigned to the demo teacher. This is NOT a real roster.
         self.assignments = {'teacher': set(self.modules)}
+        self.logbook = Logbook(db_path)
+        self.practice = Practice(self, data)
         self.sessions = {}
         self.lock = threading.Lock()
 
@@ -91,7 +94,7 @@ class Pilot:
         teacher = user['role'] == 'teacher'
         if teacher:
             self.teacher(user, module_id)
-        attempts = self.store.submissions(student=user['id'], module=module_id) if not teacher else []
+        attempts = clinical(self.store.submissions(student=user['id'], module=module_id)) if not teacher else []
         version = self.versions[module_id]
         unlocked = {r['case'] for r in attempts if r['version'] == version}
         cases = []
@@ -105,14 +108,15 @@ class Pilot:
         content = self.materials.view(m)
         return {'id': module_id, 'title': m['module_title'], 'year': m['pedagogical_year'],
                 'version': version, 'cases': cases, 'attempts': attempts,
-                'drafts': self.store.drafts(user['id'], module_id, version) if not teacher else {},
+                'drafts': {k: v for k, v in self.store.drafts(user['id'], module_id, version).items()
+                           if not k.startswith(PREFIX)} if not teacher else {},
                 'materials': content, 'opened': self.reading.get(user['id'], module_id, content['version']),
                 'question_count': len([q for q in self.questions if q['module'] == module_id]),
                 'quizzes': self.quiz.history(user['id'], module_id) if not teacher else []}
 
     def submission_view(self, user, sid):
         row = self.store.get(sid)
-        if row is None:
+        if row is None or row['case'].startswith(PREFIX):  # practice rows use /api/practice/*
             raise ApiError(404, 'Ответ не найден.')
         if user['role'] == 'teacher':
             self.teacher(user, row['module'])
@@ -192,6 +196,7 @@ class Handler(BaseHTTPRequestHandler):
                 assets = {'/': ('index.html', 'text/html; charset=utf-8'),
                           '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
                           '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
+                          '/practice.js': ('practice.js', 'text/javascript; charset=utf-8'),
                           '/style.css': ('style.css', 'text/css; charset=utf-8')}
                 if path in assets:
                     name, mime = assets[path]
@@ -227,9 +232,20 @@ class Handler(BaseHTTPRequestHandler):
             if not mutation and path == '/api/queue':
                 if user['role'] != 'teacher':
                     raise ApiError(403, 'Очередь доступна преподавателю.')
-                rows = [r for r in self.pilot.store.submissions() if
+                rows = [r for r in clinical(self.pilot.store.submissions()) if
                         r['module'] in self.pilot.assignments.get(user['id'], set())]
                 return self.respond(200, rows)
+            practice = self.pilot.practice
+            if not mutation and path == '/api/practice/queue':
+                return self.respond(200, practice.queue(user))
+            if not mutation and path.startswith('/api/practice/submissions/'):
+                return self.respond(200, practice.submission(user, int(path.rsplit('/', 1)[1])))
+            if not mutation and path.startswith('/api/practice/'):
+                return self.respond(200, practice.view(user, path.removeprefix('/api/practice/')))
+            routes = {'/api/practice/drafts': practice.draft, '/api/practice/answers': practice.answer,
+                      '/api/practice/reviews': practice.review}
+            if mutation and path in routes:
+                return self.respond(200, routes[path](user, body))
             if not mutation and path == '/api/test-results':
                 if user['role'] != 'teacher':
                     raise ApiError(403, 'Результаты группы доступны преподавателю.')
