@@ -189,10 +189,11 @@
         '<section class="orp-panel" data-panel-id="tests">' +
           '<div class="orp-sectionhead"><h2 class="orp-h2">Банк тестов</h2><span class="orp-muted" id="orpTestCount"></span></div>' +
           '<div class="orp-controls">' +
-            '<select class="orp-input orp-grow" id="orpTestModule"><option value="">Все модули</option></select>' +
+            '<select class="orp-input orp-grow" id="orpTestModule"><option value="">Все модули — тренировка</option></select>' +
             '<select class="orp-input" id="orpTestN"><option value="5">5 вопросов</option><option value="10" selected>10 вопросов</option><option value="20">20 вопросов</option><option value="60">60 вопросов (пробный экзамен)</option></select>' +
             '<button type="button" class="orp-primary" id="orpStartTest">Начать тест</button>' +
           '</div>' +
+          '<p class="orp-muted" id="orpTestHint"></p>' +
           '<div id="orpTestBox"></div>' +
         '</section>' +
 
@@ -403,7 +404,7 @@
     if ((m.oral_discussion_questions || []).length) sections.push({ key: 'oral', label: 'Устный разбор', html:
       '<div class="orp-stage"><b>Вопросы для устного разбора</b><ol class="orp-list">' + m.oral_discussion_questions.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ol></div>' });
     if (nQ) sections.push({ key: 'test', label: 'Самоконтроль', html:
-      '<div class="orp-stage"><b>Самоконтроль</b><p>Тестовых заданий по модулю: ' + nQ + '. Ответ, пояснение и источник показываются после каждого вопроса.</p>' +
+      '<div class="orp-stage"><b>Самоконтроль</b><p>Зачётный тест: все вопросы модуля (' + nQ + ') по одному разу, порог зачёта — не менее 70% верных ответов. Ответ, пояснение и источник показываются после каждого вопроса.</p>' +
       '<button type="button" class="orp-primary orp-module-test" data-id="' + esc(id) + '">Запустить тест по модулю</button></div>' });
     if (vps.length || osce.length || tbs.length) sections.push({ key: 'practice', label: 'Практика', html:
       '<div class="orp-stage"><b>Практика</b>' + practice + '</div>' });
@@ -600,7 +601,7 @@
   /* ---------- тесты ---------- */
 
   function setupTests(D, X, api) {
-    var sel = q('#orpTestModule'), nSel = q('#orpTestN'), box = q('#orpTestBox'), count = q('#orpTestCount');
+    var sel = q('#orpTestModule'), nSel = q('#orpTestN'), box = q('#orpTestBox'), count = q('#orpTestCount'), hint = q('#orpTestHint');
     var pool = D.questions.filter(function (qq) { return CFG.year === 'all' || String(qq.year) === CFG.year; });
     var modules = D.modules.filter(function (m) { return CFG.year === 'all' || String(m.pedagogical_year) === CFG.year; });
     count.textContent = pool.length + ' ' + plural(pool.length, ['задание', 'задания', 'заданий']);
@@ -609,30 +610,71 @@
       sel.insertAdjacentHTML('beforeend', '<option value="' + esc(id) + '">' + esc(id) + ' — ' + esc(m.module_title) + '</option>');
     });
 
-    function runTest(items, label) {
+    var PASS_PCT = 70;
+    // Зачёт модуля решается до округления процента: score*100 >= total*PASS_PCT.
+    function requiredCorrect(total) { return total > 0 ? Math.ceil(total * PASS_PCT / 100) : 0; }
+    function isPass(score, total) { return total > 0 && score * 100 >= total * PASS_PCT; }
+
+    function modulePool(moduleId) {
+      return pool.filter(function (qq) { return normId(qq.module) === moduleId; });
+    }
+
+    // Контролы отражают выбранный режим; уже идущая попытка от них не зависит.
+    function syncControls() {
+      var moduleId = sel.value;
+      if (moduleId) {
+        var total = modulePool(moduleId).length;
+        nSel.disabled = true;
+        nSel.hidden = true;
+        hint.textContent = 'Зачёт модуля ' + moduleId + ': все вопросы модуля (' + total + '), каждый задаётся один раз. Зачёт — не менее ' + PASS_PCT + '% верных ответов' +
+          (total ? ', то есть минимум ' + requiredCorrect(total) + ' из ' + total : '') + '.';
+      } else {
+        nSel.disabled = false;
+        nSel.hidden = false;
+        hint.textContent = 'Тренировка: случайная выборка из всего банка. Тренировка не засчитывается как зачёт модуля.';
+      }
+    }
+    sel.addEventListener('change', syncControls);
+    syncControls();
+
+    function runTest(items, label, exam) {
       var i = 0, score = 0, wrong = [];
       function show() {
         if (i >= items.length) {
-          var pct = Math.round(score / items.length * 100);
-          sendResult({ kind: 'test', module: label, score: score, total: items.length, percent: pct });
+          var total = items.length;
+          var pct = total ? Math.round(score / total * 100) : 0;
+          sendResult({ kind: 'test', module: label, score: score, total: total, percent: pct, exam: !!exam });
+          var verdict;
+          if (exam) {
+            var pass = isPass(score, total);
+            verdict = '<div class="orp-feedback ' + (pass ? 'is-good' : 'is-bad') + '"><b>' + (pass ? 'Тест зачтён' : 'Тест не зачтён') + '</b><br>' +
+              'Порог зачёта — ' + PASS_PCT + '% верных ответов: нужно минимум ' + requiredCorrect(total) + ' из ' + total + ', получено ' + score + ' (' + pct + '%). ' +
+              'Результат пока не сохраняется. Подтверждение преподавателем в этой версии ещё не подключено.</div>';
+          } else {
+            verdict = '<p class="orp-muted">Это тренировка: результат не засчитывается как зачёт модуля.</p>';
+          }
           box.innerHTML = '<div class="orp-runner">' +
-            '<h3 class="orp-h3 orp-h3-lg">Результат: ' + score + ' / ' + items.length + ' (' + pct + '%)</h3>' +
-            (CFG.resultsUrl ? '<p class="orp-muted">Результат отправлен преподавателю.</p>' : '') +
+            '<h3 class="orp-h3 orp-h3-lg">Результат: ' + score + ' / ' + total + ' (' + pct + '%)</h3>' +
+            verdict +
+            (CFG.resultsUrl ? '<p class="orp-muted">Отправка результата в приёмник не подтверждает его сохранение на сервере.</p>' : '') +
             (wrong.length ? '<div class="orp-stage"><b>Разобрать ошибки</b><ol class="orp-list">' + wrong.map(function (w) { return '<li><b>' + esc(w.id) + '.</b> ' + esc(w.stem) + '<div class="orp-muted">Верно: ' + esc(w.answer) + '</div></li>'; }).join('') + '</ol></div>' : '') +
             '<button type="button" class="orp-primary" id="orpTestAgain">Пройти ещё раз</button></div>';
-          q('#orpTestAgain', box).addEventListener('click', function () { runTest(shuffle(items), label); });
+          q('#orpTestAgain', box).addEventListener('click', function () { runTest(shuffle(items), label, exam); });
           scrollTo(box);
           return;
         }
         var qq = items[i];
         var opts = shuffle((qq.options || []).map(function (t, j) { return { text: t, key: 'ABCD'[j] }; }));
         box.innerHTML = '<div class="orp-runner">' +
-          '<div class="orp-muted">' + esc(qq.id) + ' · ' + esc(normId(qq.module)) + ' · ' + (i + 1) + '/' + items.length + '</div>' +
+          '<div class="orp-muted">' + esc(qq.id) + ' · ' + esc(normId(qq.module)) + ' · ' + (i + 1) + '/' + items.length + ' · ' + (exam ? 'зачёт' : 'тренировка') + '</div>' +
           '<div class="orp-question">' + esc(qq.stem) + '</div>' +
           opts.map(function (o) { return '<button type="button" class="orp-choice" data-key="' + o.key + '">' + esc(o.text) + '</button>'; }).join('') +
           '<div id="orpTestFeedback"></div></div>';
+        var answered = false;
         qa('.orp-choice', box).forEach(function (b) {
           b.addEventListener('click', function () {
+            if (answered) return;
+            answered = true;
             qa('.orp-choice', box).forEach(function (x) { x.disabled = true; });
             var ok = b.getAttribute('data-key') === qq.correct;
             if (ok) score++;
@@ -653,21 +695,38 @@
       show();
     }
 
-    function start(moduleId, n) {
-      var items = moduleId ? pool.filter(function (qq) { return normId(qq.module) === moduleId; }) : pool;
-      if (!items.length) {
-        box.innerHTML = '<div class="orp-runner"><p>Для выбранного модуля вопросы пока не найдены.</p></div>';
+    // Экран перед попыткой: правило режима и явный старт.
+    function intro(exam, moduleId, n) {
+      var items = exam ? modulePool(moduleId) : null;
+      var total = exam ? items.length : Math.min(n, pool.length);
+      if (!total) {
+        box.innerHTML = '<div class="orp-runner"><p>' + (exam ? 'Для выбранного модуля вопросы пока не найдены.' : 'В банке пока нет вопросов.') + '</p></div>';
         return;
       }
-      runTest(shuffle(items).slice(0, Math.min(n, items.length)), moduleId || 'Все модули');
+      var text = exam
+        ? 'Зачётный тест модуля ' + esc(moduleId) + ': ' + total + ' ' + plural(total, ['вопрос', 'вопроса', 'вопросов']) + ', каждый задаётся один раз. ' +
+          'Зачёт — не менее ' + PASS_PCT + '% верных ответов, то есть минимум ' + requiredCorrect(total) + ' из ' + total + '. ' +
+          'Результат пока не сохраняется. Подтверждение преподавателем в этой версии ещё не подключено.'
+        : 'Тренировка: ' + total + ' ' + plural(total, ['случайный вопрос', 'случайных вопроса', 'случайных вопросов']) + ' из всего банка (' + pool.length + '). ' +
+          'Тренировка не засчитывается как зачёт модуля.';
+      box.innerHTML = '<div class="orp-runner">' +
+        '<div class="orp-stage"><b>' + (exam ? 'Зачёт модуля ' + esc(moduleId) : 'Тренировка') + '</b><p>' + text + '</p></div>' +
+        '<button type="button" class="orp-primary" id="orpTestBegin">Начать</button></div>';
+      q('#orpTestBegin', box).addEventListener('click', function () {
+        runTest(shuffle(exam ? items : pool).slice(0, total), exam ? moduleId : 'Все модули', exam);
+      });
+      scrollTo(box);
     }
 
-    q('#orpStartTest').addEventListener('click', function () { start(sel.value, Number(nSel.value) || 10); });
+    q('#orpStartTest').addEventListener('click', function () {
+      sel.value ? intro(true, sel.value) : intro(false, null, Number(nSel.value) || 10);
+    });
     api.startModuleTest = function (moduleId) {
       activatePanel('tests');
       sel.value = moduleId;
+      syncControls();
       setUrlParam('panel', 'tests');
-      start(moduleId, 10);
+      intro(true, moduleId);
     };
   }
 
