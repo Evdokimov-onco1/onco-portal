@@ -156,6 +156,63 @@ class HttpTest(unittest.TestCase):
         self.request(other_device, '/api/login', {'username': 'student-a', 'password': 'demo-student-a'})
         self.assertEqual(self.request(other_device, '/api/modules/M01')[1]['attempts'][0]['id'], row['id'])
 
+    def quiz_start(self, key='quiz-1', size=10):
+        self.server.pilot.questions = [{'id': f'q{i}', 'module': 'M01', 'stem': f'Synthetic {i}',
+            'options': ['One', 'Two'], 'correct': 'B', 'explanation': 'PRIVATE QUIZ EXPLANATION'} for i in range(size)]
+        return self.request(self.a, '/api/quizzes/start', {'module': 'M01', 'key': key})[1]
+
+    def test_quiz_full_bank_exact_threshold_and_ownership(self):
+        q = self.quiz_start(size=23)
+        self.assertEqual(q['total'], 23)
+        self.assertNotIn('correct', json.dumps(q))
+        self.assertNotIn('PRIVATE QUIZ EXPLANATION', json.dumps(q))
+        answers = {f'q{i}': 'B' if i < 16 else 'A' for i in range(23)}
+        self.assertEqual(self.request(self.b, '/api/quizzes/'+q['id'])[0], 404)
+        self.assertEqual(self.request(self.t, '/api/quizzes/start', {'module': 'M01', 'key': 'no'})[0], 403)
+        self.assertEqual(self.request(self.b, '/api/quizzes/submit', {'id': q['id'], 'answers': answers})[0], 404)
+        result = self.request(self.a, '/api/quizzes/submit', {'id': q['id'], 'answers': answers,
+            'score': 23, 'passed': True, 'student': 'student-b'})[1]
+        self.assertEqual(result['score'], 16)
+        self.assertFalse(result['passed'])  # 69.565%, never rounded up to a pass
+        self.assertEqual(result['student'], 'student-a')
+        self.assertEqual(len(self.request(self.t, '/api/test-results')[1]), 1)
+        self.server.pilot.assignments['teacher'] = set()
+        self.assertEqual(self.request(self.t, '/api/test-results')[1], [])
+        self.assertEqual(self.request(self.a, '/api/test-results')[0], 403)
+
+    def test_quiz_saved_resumed_and_repeated_after_restart(self):
+        q = self.quiz_start()
+        self.assertEqual(self.request(self.a, '/api/quizzes/save', {'id': q['id'], 'answers': {'q0': 'B'}})[0], 200)
+        self.server.shutdown(); self.server.server_close(); self.thread.join(timeout=3)
+        self.start_server()
+        self.a = self.client()
+        self.request(self.a, '/api/login', {'username': 'student-a', 'password': 'demo-student-a'})
+        resumed = self.request(self.a, '/api/quizzes/'+q['id'])[1]
+        self.assertEqual(resumed['answers'], {'q0': 'B'})
+        self.assertEqual(resumed['questions'], q['questions'])
+        self.assertEqual(self.request(self.a, '/api/quizzes/submit', {'id': q['id'], 'answers': {'q0': 'B'}})[0], 400)
+        answers = {f'q{i}': 'B' if i < 7 else 'A' for i in range(10)}
+        result = self.request(self.a, '/api/quizzes/submit', {'id': q['id'], 'answers': answers})[1]
+        self.assertTrue(result['passed'])
+        self.assertEqual(result['score'], 7)
+        self.assertEqual(self.request(self.a, '/api/quizzes/save', {'id': q['id'], 'answers': {'q0': 'A'}})[0], 400)
+        q2 = self.quiz_start(key='quiz-2')
+        self.assertNotEqual(q['id'], q2['id'])
+        self.assertEqual(len(self.request(self.a, '/api/modules/M01')[1]['quizzes']), 2)
+
+    def test_material_opening_is_private_versioned_and_allowlisted(self):
+        self.server.pilot.modules['M01']['reading'] = {'guidelines': [{'title': 'Synthetic source', 'url': 'https://example.test/source'}]}
+        m = self.request(self.a, '/api/modules/M01')[1]
+        body = {'module': 'M01', 'version': m['materials']['version'], 'resource': 'guidelines-1'}
+        self.assertEqual(self.request(self.a, '/api/resources/open', {**body, 'url': 'https://invalid.test'})[1]['url'], 'https://example.test/source')
+        self.assertIn('guidelines-1', self.request(self.a, '/api/modules/M01')[1]['opened'])
+        self.assertEqual(self.request(self.b, '/api/modules/M01')[1]['opened'], {})
+        self.assertEqual(self.request(self.a, '/api/resources/open', {**body, 'version': 'stale'})[0], 409)
+        self.assertEqual(self.request(self.a, '/api/resources/open', {**body, 'resource': 'fabricated'})[0], 404)
+        self.assertEqual(self.request(self.t, '/api/resources/open', body)[0], 403)
+        self.assertEqual(self.request(self.a, '/documents/M01')[0], 403)  # Word contains model answers
+        self.assertEqual(self.request(self.client(), '/documents/M01')[0], 401)
+
 
 if __name__ == '__main__':
     unittest.main()
