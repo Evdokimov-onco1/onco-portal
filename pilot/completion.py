@@ -329,6 +329,43 @@ class Completion:
         finally:
             conn.close()
 
+    def _lecture_candidate_count(self, materials):
+        return sum(1 for v in materials['faculty_videos'] if v.get('url'))
+
+    def lecture_overview(self, user):
+        if user['role'] != 'teacher':
+            raise ApiError(403, 'Обзор привязки лекций доступен только преподавателю.')
+        assigned = sorted(self.pilot.assignments.get(user['id'], set()))
+        summary = {'total': 0, 'bound': 0, 'candidates': 0, 'missing': 0}
+        modules_out = []
+        conn = self._connect()
+        try:
+            for module_id in assigned:
+                meta = self.pilot.module(module_id)
+                materials = self._materials(module_id)
+                candidate_count = self._lecture_candidate_count(materials)
+                binding = self._binding_public(
+                    self._binding_row(conn, module_id, materials['version']))
+                if binding:
+                    status = 'bound'
+                elif candidate_count:
+                    status = 'candidates'
+                else:
+                    status = 'missing'
+                summary[status] += 1
+                modules_out.append({
+                    'module': module_id,
+                    'title': meta['module_title'],
+                    'year': meta['pedagogical_year'],
+                    'status': status,
+                    'candidate_count': candidate_count,
+                    'current': binding,
+                })
+        finally:
+            conn.close()
+        summary['total'] = len(modules_out)
+        return {'summary': summary, 'modules': modules_out}
+
     def lecture_view(self, user, module_id):
         self.pilot.teacher(user, module_id)
         materials = self._materials(module_id)

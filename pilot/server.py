@@ -302,11 +302,13 @@ class Handler(BaseHTTPRequestHandler):
                 rest = path.removeprefix('/api/completion/students/')
                 student_id, module_id = rest.split('/', 1)
                 return self.respond(200, completion.get_student(user, student_id, module_id))
+            if not mutation and path == '/api/completion/lectures':
+                return self.respond(200, completion.lecture_overview(user))
             if not mutation and path.startswith('/api/completion/lecture/'):
                 return self.respond(200, completion.lecture_view(user, path.removeprefix('/api/completion/lecture/')))
             if not mutation and path.startswith('/api/completion/'):
                 module_id = path.removeprefix('/api/completion/')
-                if module_id in ('queue', 'students', 'lecture', 'submit', 'review'):
+                if module_id in ('queue', 'students', 'lecture', 'lectures', 'submit', 'review'):
                     raise ApiError(404, 'Страница не найдена.')
                 return self.respond(200, completion.get_own(user, module_id))
             if mutation and path == '/api/completion/lecture':

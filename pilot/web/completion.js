@@ -131,16 +131,109 @@ function lectureCandidatePreview(candidates,sel){
  if(!c?.url)return '<p class="help" id="completionCandPreview">Выберите запись и откройте ссылку для проверки перед подтверждением привязки.</p>';
  return `<p class="help" id="completionCandPreview">Проверка перед привязкой: <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">Открыть выбранную запись ↗</a></p>`;
 }
+const lectureCoverageStatusLabel={bound:'Привязана',candidates:'Есть кандидаты',missing:'Нет кандидатов'};
+const lectureCoverageStatusHelp='«Привязана» — только точная привязка к текущей редакции материалов, не готовность всего модуля. Кандидаты из материалов требуют проверки преподавателем; открытие ссылки не доказывает просмотр.';
+function lectureCoverageFilterModules(modules,statusFilter,search){
+ const q=(search||'').trim().toLowerCase();
+ return (modules||[]).filter(m=>{
+  if(statusFilter&&statusFilter!=='all'&&m.status!==statusFilter)return false;
+  if(!q)return true;
+  return String(m.module||'').toLowerCase().includes(q)||String(m.title||'').toLowerCase().includes(q);
+ });
+}
+function lectureCoverageSummaryMarkup(summary){
+ if(!summary)return '';
+ return `<dl class="lecture-coverage-stats"><div><dt>Всего модулей</dt><dd>${esc(summary.total??0)}</dd></div><div><dt>Привязано</dt><dd>${esc(summary.bound??0)}</dd></div><div><dt>С кандидатами</dt><dd>${esc(summary.candidates??0)}</dd></div><div><dt>Без кандидатов</dt><dd>${esc(summary.missing??0)}</dd></div></dl>`;
+}
+function lectureCoverageListMarkup(rows){
+ if(!rows.length)return '<p class="empty muted">Нет модулей по выбранному фильтру.</p>';
+ return `<ul class="lecture-coverage-list">${rows.map(m=>{
+  const badgeCls=m.status==='bound'?'accepted':m.status==='candidates'?'warn':'';
+  return `<li class="lecture-coverage-item"><div class="lecture-coverage-main"><span class="badge ${esc(badgeCls)}">${esc(lectureCoverageStatusLabel[m.status]||m.status)}</span><strong>${esc(m.module)}</strong><span class="muted">${esc(m.title)}</span><span class="muted">год ${esc(m.year)} · кандидатов: ${esc(m.candidate_count??0)}</span></div><button type="button" class="lecture-coverage-open" data-lecture-mod="${esc(m.module)}">Привязка</button></li>`;
+ }).join('')}</ul>`;
+}
+function lectureCoverageLiveCountText(modules,filteredCount){
+ const total=(modules||[]).length;
+ if(!total)return 'Модулей в зоне ответственности нет.';
+ return `Показано модулей: ${filteredCount} из ${total}.`;
+}
+function lectureCoverageResultsInnerMarkup(overview,statusFilter,search){
+ if(!overview?.modules?.length)return '<p class="empty muted">В вашей зоне ответственности пока нет модулей.</p>';
+ return lectureCoverageListMarkup(lectureCoverageFilterModules(overview.modules,statusFilter,search));
+}
+function refreshLectureCoverageResults(block,overview,statusFilter,search){
+ if(!block)return;
+ const resultsEl=block.querySelector('#lectureCoverageResults');
+ const liveEl=block.querySelector('#lectureCoverageLive');
+ const filtered=lectureCoverageFilterModules(overview?.modules,statusFilter,search);
+ if(resultsEl)resultsEl.innerHTML=lectureCoverageResultsInnerMarkup(overview,statusFilter,search);
+ if(liveEl)liveEl.textContent=lectureCoverageLiveCountText(overview?.modules,filtered.length);
+}
+function lectureCoverageOverviewMarkup(overview,err,statusFilter,search){
+ if(err)return `<section class="paper completion-lecture-overview" aria-labelledby="lectureCoverageHeading"><h2 id="lectureCoverageHeading">Обзор привязки лекций</h2><div class="locked">${esc(err)}</div><div class="actions"><button type="button" id="lectureCoverageRetry">Повторить загрузку обзора</button></div></section>`;
+ const filtered=lectureCoverageFilterModules(overview?.modules,statusFilter,search);
+ const controls=`<div class="lecture-coverage-controls"><div><label for="lectureCoverageStatus">Статус</label><select id="lectureCoverageStatus"><option value="all" ${statusFilter==='all'?'selected':''}>Все</option><option value="bound" ${statusFilter==='bound'?'selected':''}>Привязана</option><option value="candidates" ${statusFilter==='candidates'?'selected':''}>Есть кандидаты</option><option value="missing" ${statusFilter==='missing'?'selected':''}>Нет кандидатов</option></select></div><div><label for="lectureCoverageSearch">Поиск по коду или названию</label><input type="search" id="lectureCoverageSearch" value="${esc(search||'')}" autocomplete="off" /></div></div>`;
+ const resultsRegion=`<div id="lectureCoverageResultsRegion" class="lecture-coverage-results-region" role="region" aria-labelledby="lectureCoverageListLabel" tabindex="0"><h3 id="lectureCoverageListLabel" class="lecture-coverage-list-label">Модули в зоне ответственности</h3><p id="lectureCoverageLive" class="lecture-coverage-live" aria-live="polite">${esc(lectureCoverageLiveCountText(overview?.modules,filtered.length))}</p><div id="lectureCoverageResults">${lectureCoverageResultsInnerMarkup(overview,statusFilter,search)}</div></div>`;
+ return `<section class="paper completion-lecture-overview" aria-labelledby="lectureCoverageHeading"><h2 id="lectureCoverageHeading">Обзор привязки лекций</h2><p class="help">${esc(lectureCoverageStatusHelp)}</p>${lectureCoverageSummaryMarkup(overview?.summary)}${controls}${resultsRegion}</section>`;
+}
+function wireLectureCoverageOpenButtons(block,loadId,userId){
+ if(!block||block.dataset.lectureCoverageOpenWired==='1')return;
+ block.dataset.lectureCoverageOpenWired='1';
+ block.addEventListener('click',e=>{
+  const b=e.target?.closest?.('.lecture-coverage-open');
+  if(!b||!block.contains(b))return;
+  if(!safeLeave())return;
+  clearCompletionLectureDraft();
+  state.teacherCompletionModule=b.dataset.lectureMod;
+  state.focusCompletionLectureBinding=true;
+  teacherCompletionView();
+ });
+}
+function focusCompletionLectureBindingSection(loadId,userId,wantFocus){
+ if(!wantFocus)return;
+ if(!shouldApplyTeacherCompletion(loadId,userId))return;
+ const target=document.querySelector('#completionLectureBinding')||document.querySelector('#completionMod');
+ target?.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+ target?.focus?.({preventScroll:true});
+}
+function wireLectureCoverageOverview(root,overview,loadId,userId){
+ const retry=root.querySelector('#lectureCoverageRetry');
+ retry?.addEventListener('click',()=>{if(!safeLeave())return;teacherCompletionView();});
+ const block=root.querySelector('.completion-lecture-overview');
+ const statusEl=root.querySelector('#lectureCoverageStatus');
+ const searchEl=root.querySelector('#lectureCoverageSearch');
+ if(!statusEl&&!searchEl){wireLectureCoverageOpenButtons(block,loadId,userId);return;}
+ const applyFilter=()=>{
+  if(!shouldApplyTeacherCompletion(loadId,userId))return;
+  const sf=statusEl?.value||'all',sq=searchEl?.value||'';
+  state.edits.lectureCoverageStatus=sf;
+  state.edits.lectureCoverageSearch=sq;
+  refreshLectureCoverageResults(block,overview,sf,sq);
+ };
+ statusEl?.addEventListener('change',applyFilter);
+ searchEl?.addEventListener('input',applyFilter);
+ wireLectureCoverageOpenButtons(block,loadId,userId);
+}
+function lectureBindingStatusMarkup(lecture,lErr,bindSel){
+ if(lErr)return `<div class="locked">Не удалось загрузить привязку лекции: ${esc(lErr)}</div><button type="button" id="lectureBindingRetry">Повторить загрузку привязки</button>`;
+ const candidates=lecture?.candidates||[];
+ const sameAsCurrent=lecture?.current?.resource&&bindSel===lecture.current.resource;
+ return `${lecture?.current?`<p class="help">Текущая привязка: <a href="${esc(lecture.current.url)}" target="_blank" rel="noopener noreferrer">${esc(lecture.current.title)}</a> · ${stamp(lecture.current.created_at)}</p>`:'<p class="help">Привязки нет — ординатор не сможет засчитать лекцию, пока вы не выберете запись из списка кафедральных видео с действующей ссылкой.</p>'}${candidates.length?`<label for="completionCand">Кандидат из материалов модуля</label><select id="completionCand"><option value="">— выберите запись —</option>${candidates.map(c=>`<option value="${esc(c.id)}" ${c.id===bindSel?'selected':''}>${esc(c.title)}</option>`).join('')}</select>${lectureCandidatePreview(candidates,bindSel)}<div class="actions"><button class="primary" id="completionBind" type="button" ${!bindSel||sameAsCurrent?'disabled':''}>Подтвердить привязку</button></div>`:'<div class="locked">Нет допустимых кафедральных записей с URL в текущих материалах. Сначала добавьте в модуль кафедральные видео с рабочей ссылкой.</div>'}`;
+}
 async function teacherCompletionView(){
  const loadId=nextCompletionLoadId(),userId=state.user?.id;
+ const wantCompletionLectureFocus=!!state.focusCompletionLectureBinding;
+ delete state.focusCompletionLectureBinding;
  state.teacherTab='completion';
  const mod=state.teacherCompletionModule||state.modules[0]?.id||'M01';
  app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Завершение модулей</h1><p class="muted intro">Привяжите кафедральную лекцию, проверьте готовность ординатора и подтвердите зачёт. Письменные ответы по Tumor Board обязательны на всех этапах; в логбуке преподаватель оценивает только финальный этап каждого кейса.</p>${teacherNavMarkup()}<div id="teacher-completion-pane"><p class="muted">Загрузка…</p></div>`;
  wireTeacherNav();
  const pane=document.querySelector('#teacher-completion-pane');
  if(state.teacherCompletionReview){await teacherCompletionReview(state.teacherCompletionReview,loadId);return;}
- let queue=[],qErr='';
+ let queue=[],qErr='',overview=null,oErr='';
  try{queue=await api('/api/completion/queue');}catch(e){qErr=e.message||'Очередь недоступна.';}
+ if(!shouldApplyTeacherCompletion(loadId,userId))return;
+ try{overview=await api('/api/completion/lectures');}catch(e){oErr=e.message||'Не удалось загрузить обзор привязки лекций.';}
  if(!shouldApplyTeacherCompletion(loadId,userId))return;
  let lecture=null,lErr='';
  try{lecture=await api('/api/completion/lecture/'+encodeURIComponent(mod));}catch(e){lErr=e.message||'Не удалось загрузить кандидатов лекции.';}
@@ -149,12 +242,17 @@ async function teacherCompletionView(){
  const candidates=lecture?.candidates||[];
  const bindSel=state.edits.completionLecturePick??lecture?.current?.resource??'';
  const sameAsCurrent=lecture?.current?.resource&&bindSel===lecture.current.resource;
- const mapBlock=`<section class="paper completion-lecture"><h2>Привязка лекции · ${esc(mod)}</h2><label for="completionMod">Модуль</label><select id="completionMod">${state.modules.map(x=>`<option value="${esc(x.id)}" ${x.id===mod?'selected':''}>${esc(x.id+' · '+x.title)}</option>`).join('')}</select>${lErr?`<div class="locked">${esc(lErr)}</div>`:''}${lecture?.current?`<p class="help">Текущая привязка: <a href="${esc(lecture.current.url)}" target="_blank" rel="noopener noreferrer">${esc(lecture.current.title)}</a> · ${stamp(lecture.current.created_at)}</p>`:'<p class="help">Привязки нет — ординатор не сможет засчитать лекцию, пока вы не выберете запись из списка кафедральных видео с действующей ссылкой.</p>'}${candidates.length?`<label for="completionCand">Кандидат из материалов модуля</label><select id="completionCand"><option value="">— выберите запись —</option>${candidates.map(c=>`<option value="${esc(c.id)}" ${c.id===bindSel?'selected':''}>${esc(c.title)}</option>`).join('')}</select>${lectureCandidatePreview(candidates,bindSel)}<div class="actions"><button class="primary" id="completionBind" type="button" ${!bindSel||sameAsCurrent?'disabled':''}>Подтвердить привязку</button></div>`:'<div class="locked">Нет допустимых кафедральных записей с URL в текущих материалах. Сначала добавьте в модуль кафедральные видео с рабочей ссылкой.</div>'}</section>`;
+ const mapBlock=`<section class="paper completion-lecture"><h2 id="completionLectureBinding" tabindex="-1">Привязка лекции · ${esc(mod)}</h2><label for="completionMod">Модуль</label><select id="completionMod">${state.modules.map(x=>`<option value="${esc(x.id)}" ${x.id===mod?'selected':''}>${esc(x.id+' · '+x.title)}</option>`).join('')}</select>${lectureBindingStatusMarkup(lecture,lErr,bindSel)}</section>`;
  const queueItems=queue.length?queue.map(r=>{
   const badge=queueRequestBadge(r);
   return `<button type="button" class="queue-item" data-cr="${esc(r.student)}:${esc(r.module)}"><span class="status-row">${badge}${r.stale?'<span class="badge warn">устарела</span>':''}${!r.current_request?'<span class="badge warn">не текущая заявка</span>':''}<small>${esc(completionPerson(r.student))} · ${esc(r.module)} · заявка №${r.id} · ${stamp(r.created_at)}</small></span><strong>${esc(state.modules.find(m=>m.id===r.module)?.title||r.module)}</strong></button>`;
  }).join(''):'<div class="empty">Активных заявок нет. Они появятся после отправки ординатором из раздела «Прогресс».</div>';
- pane.innerHTML=`${mapBlock}<section class="paper"><h2>Очередь заявок</h2>${qErr?`<div class="locked">${esc(qErr)}</div>`:''}${queueItems}</section>`;
+ const covStatus=state.edits.lectureCoverageStatus||'all';
+ const covSearch=state.edits.lectureCoverageSearch||'';
+ const overviewBlock=lectureCoverageOverviewMarkup(overview,oErr,covStatus,covSearch);
+ pane.innerHTML=`${overviewBlock}${mapBlock}<section class="paper"><h2>Очередь заявок</h2>${qErr?`<div class="locked">${esc(qErr)}</div>`:''}${queueItems}</section>`;
+ wireLectureCoverageOverview(pane,overview,loadId,userId);
+ document.querySelector('#lectureBindingRetry')?.addEventListener('click',()=>{if(safeLeave())teacherCompletionView();});
  document.querySelector('#completionMod')?.addEventListener('change',e=>{
   const prev=state.teacherCompletionModule||mod;
   if(!safeLeave()){e.target.value=prev;return;}
@@ -192,6 +290,7 @@ async function teacherCompletionView(){
   state.teacherCompletionReview={student,module};
   teacherCompletionView();
  }));
+ focusCompletionLectureBindingSection(loadId,userId,wantCompletionLectureFocus);
 }
 async function teacherCompletionReview(target,parentLoadId){
  const loadId=parentLoadId||nextCompletionLoadId(),userId=state.user?.id;
@@ -226,4 +325,4 @@ async function teacherCompletionReview(target,parentLoadId){
   teacherCompletionView();
  })));
 }
-if(typeof module!=='undefined'&&module.exports){module.exports={checkPanel,completionStatusLabel,shouldApplyCompletionResponse,shouldApplyTeacherCompletion,shouldApplyTeacherApp,invalidateCompletionLoads,nextCompletionLoadId};}
+if(typeof module!=='undefined'&&module.exports){module.exports={checkPanel,completionStatusLabel,shouldApplyCompletionResponse,shouldApplyTeacherCompletion,shouldApplyTeacherApp,invalidateCompletionLoads,nextCompletionLoadId,lectureCoverageStatusLabel,lectureCoverageFilterModules,lectureCoverageListMarkup,lectureCoverageOverviewMarkup,lectureCoverageLiveCountText,refreshLectureCoverageResults,wireLectureCoverageOverview,focusCompletionLectureBindingSection};}
