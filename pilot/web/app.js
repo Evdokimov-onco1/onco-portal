@@ -2,7 +2,7 @@
 const app = document.querySelector('#app');
 const identity = document.querySelector('#identity');
 const notice = document.querySelector('#notice');
-const state = {user:null, modules:[], module:null, caseId:'C1', edits:{}, dirty:new Set(), pending:{}, queue:[], filter:'pending', panel:new URLSearchParams(location.search).get('panel')||'materials', quiz:null, practice:null, sel:{}, practiceQueue:null};
+const state = {user:null, modules:[], module:null, caseId:'C1', edits:{}, dirty:new Set(), pending:{}, queue:[], filter:'pending', panel:new URLSearchParams(location.search).get('panel')||'materials', quiz:null, practice:null, sel:{}, practiceQueue:null, completionLoadId:0, practiceLoadId:0, teacherTab:null};
 const esc = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp = s => new Date(s).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'});
 const latest = a => a.reviews.length ? a.reviews[a.reviews.length-1] : null;
@@ -24,14 +24,14 @@ function safeLeave(){return !state.dirty.size || confirm('Есть несохр�
 window.addEventListener('beforeunload',e=>{if(state.dirty.size){e.preventDefault();e.returnValue='';}});
 function header(){
  identity.innerHTML=state.user?`<span>${esc(state.user.name)} · демо</span><button id="logout">Выйти</button>`:'';
- document.querySelector('#logout')?.addEventListener('click',e=>{if(!safeLeave())return;action(e.target,async()=>{await api('/api/logout',{});invalidatePracticeLoads();state.user=null;state.dirty.clear();state.edits={};state.pending={};login();});});
+ document.querySelector('#logout')?.addEventListener('click',e=>{if(!safeLeave())return;action(e.target,async()=>{nextCompletionLoadId();const was=state.user;await api('/api/logout',{});invalidatePracticeLoads();invalidateCompletionLoads();if(state.user!==was)return;state.user=null;state.teacherTab=null;state.teacherCompletionModule=null;state.teacherCompletionReview=null;state.dirty.clear();state.edits={};state.pending={};login();});});
 }
 function login(){
  header();app.innerHTML=`<section class="paper login"><div class="eyebrow">Учебный кабинет · пилот</div><h1>От решения задачи<br>к обратной связи</h1><p class="muted">Сохраните собственное рассуждение, сравните его с эталоном и получите комментарий преподавателя.</p><form id="login"><label for="username">Демонстрационный аккаунт</label><select id="username"><option value="student-a">Ординатор А</option><option value="student-b">Ординатор Б</option><option value="teacher">Преподаватель</option></select><label for="password">Пароль</label><input id="password" type="password" autocomplete="current-password" required><button class="primary" type="submit">Войти в кабинет</button></form><details open><summary>Доступы для проверки</summary><p>Ординатор А: <code>demo-student-a</code><br>Ординатор Б: <code>demo-student-b</code><br>Преподаватель: <code>demo-teacher</code></p><p>Это тестовые аккаунты на этом компьютере. Регистрация реальных участников появится после подключения авторизации.</p></details></section>`;
  document.querySelector('#login').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{state.user=await api('/api/login',{username:document.querySelector('#username').value,password:document.querySelector('#password').value});state.modules=await api('/api/modules');await home();});});
 }
-async function home(){header();if(state.user.role==='teacher')await teacher();else await loadModule(new URLSearchParams(location.search).get('module')||'M01');}
-async function loadModule(id){invalidatePracticeLoads();state.module=await api('/api/modules/'+encodeURIComponent(id));state.caseId='C1';state.edits={};state.dirty.clear();state.quiz=null;state.quizStartKey=null;state.sel={};student();}
+async function home(){header();if(state.user.role==='teacher'){invalidateCompletionLoads();await teacher();}else await loadModule(new URLSearchParams(location.search).get('module')||'M01');}
+async function loadModule(id){invalidatePracticeLoads();invalidateCompletionLoads();state.module=await api('/api/modules/'+encodeURIComponent(id));state.caseId='C1';state.edits={};state.dirty.clear();state.quiz=null;state.quizStartKey=null;state.sel={};student();}
 function answerHistory(attempts){return attempts.map(a=>`<article class="attempt"><div class="status-row">${badge(a)}<span class="muted">Ответ №${a.id} · ${stamp(a.created_at)}</span></div><div class="text">${esc(a.answer)}</div>${a.reviews.map(r=>`<div class="review"><strong>${r.decision==='accepted'?'Ответ принят':'Возвращён на доработку'}</strong> · ${stamp(r.created_at)}<div class="text">${esc(r.comment||'Без комментария')}</div></div>`).join('')}</article>`).join('');}
 function studentCases(){
  const m=state.module,c=m.cases.find(x=>x.id===state.caseId);if(!c){app.textContent='В модуле нет клинических задач.';return;}
@@ -47,7 +47,9 @@ function studentCases(){
  document.querySelector('#answerForm').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const text=document.querySelector('#answer').value.trim();if(!text)throw new Error('Напишите свой ответ перед отправкой.');const fingerprint=m.id+c.id+m.version+text;let p=state.pending[c.id];if(!p||p.fingerprint!==fingerprint)p=state.pending[c.id]={fingerprint,key:crypto.randomUUID()};const result=await api('/api/answers',{module:m.id,case:c.id,version:m.version,answer:text,key:p.key});state.dirty.delete(c.id);state.edits[c.id]='';delete state.pending[c.id];state.module=await api('/api/modules/'+m.id);student();notify(`Ответ №${result.id} сохранён и доступен преподавателю.`);});});
 }
 async function teacherAnswers(){
+ const loadId=nextCompletionLoadId(),userId=state.user?.id;
  state.queue=await api('/api/queue');
+ if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
  const latestCases=[];const seen=new Set();for(const a of state.queue){const k=[a.student,a.module,a.case,a.version].join(':');if(!seen.has(k)){seen.add(k);latestCases.push(a);}}
  const pending=latestCases.filter(a=>!latest(a)).length;
  const filtered=state.filter==='all'?latestCases:latestCases.filter(a=>state.filter==='pending'?!latest(a):latest(a)?.decision===state.filter);
@@ -58,11 +60,13 @@ async function teacherAnswers(){
  document.querySelectorAll('[data-review]').forEach(b=>b.addEventListener('click',()=>action(b,()=>review(Number(b.dataset.review)))));
 }
 async function review(id){
+ const loadId=state.completionLoadId,userId=state.user?.id,tab=state.teacherTab;
  const row=await api('/api/submissions/'+id),m=await api('/api/modules/'+row.module),c=m.cases.find(x=>x.id===row.case);
+ if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
  const historyRows=state.queue.filter(a=>a.student===row.student&&a.module===row.module&&a.case===row.case);
  app.innerHTML=`<button class="back" id="back">← К очереди</button><div class="eyebrow">${esc(row.module)} · ${esc(row.student==='student-a'?'Ординатор А':'Ординатор Б')}</div><h1>Проверка ответа №${row.id}</h1><section class="paper"><div class="status-row">${badge(row)}<span class="muted">Отправлен ${stamp(row.created_at)}</span></div><h2>${esc(c?.title||row.case)}</h2>${row.version!==m.version?'<div class="locked">Исходный материал изменился после отправки. Ниже текущая редакция; не принимайте работу без сверки прежнего задания.</div>':''}<div class="vignette text">${esc(c?.vignette||'')}</div><p class="questions text">${esc(c?.questions||'')}</p><h3>Ответ ординатора</h3><div class="text">${esc(row.answer)}</div><details class="model"><summary>Свериться с эталоном</summary><div class="text">${esc(c?.answer||'')}</div></details><div class="separator"></div><label for="comment">Комментарий преподавателя</label><textarea id="comment" maxlength="10000" placeholder="Что получилось и что стоит уточнить…"></textarea><p class="help">При возврате укажите, что именно необходимо доработать.</p><div class="actions"><button class="primary" data-decision="accepted">Принять ответ</button><button data-decision="returned">Вернуть на доработку</button></div><details class="history" open><summary>История этой задачи · ${historyRows.length}</summary>${answerHistory(historyRows)}</details></section>`;
  document.querySelector('#comment').addEventListener('input',()=>state.dirty.add('review'));
- document.querySelector('#back').addEventListener('click',e=>{if(!safeLeave())return;state.dirty.clear();action(e.target,teacher);});
+ document.querySelector('#back').addEventListener('click',e=>{if(!safeLeave())return;state.dirty.clear();state.teacherTab='answers';action(e.target,teacher);});
  const pending={};
  document.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>action(b,async()=>{const comment=document.querySelector('#comment').value.trim(),decision=b.dataset.decision;if(decision==='returned'&&!comment)throw new Error('Укажите, что нужно доработать.');const fp=decision+comment;if(!pending[fp])pending[fp]=crypto.randomUUID();await api('/api/reviews',{submission_id:id,decision,comment,key:pending[fp]});state.dirty.clear();await teacher();notify(decision==='accepted'?'Ответ принят. Ординатор увидит отметку в своём кабинете.':'Ответ возвращён с комментарием. История сохранена.');})));
 }

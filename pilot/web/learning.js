@@ -3,7 +3,13 @@ const panels=[['materials','Лекция и чтение'],['cases','Задач�
 const listText=items=>`<ul>${items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`;
 function navMarkup(){return `<nav class="module-nav" aria-label="Разделы модуля">${panels.map(([id,title])=>`<button data-panel="${id}" ${state.panel===id?'aria-current="page" class="selected"':''}>${title}</button>`).join('')}</nav>`;}
 function wireNav(){
- document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>{state.panel=b.dataset.panel;student();}));
+ document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>{
+  if(state.panel===b.dataset.panel)return;
+  if(!safeLeave())return;
+  invalidateCompletionLoads();
+  state.panel=b.dataset.panel;
+  student();
+ }));
  const params=new URLSearchParams({module:state.module.id,panel:state.panel});
  window.history.replaceState(null,'','/?'+params);
 }
@@ -18,9 +24,11 @@ function resourceMarkup(r){
 }
 function wireResources(){
  document.querySelectorAll('[data-resource]').forEach(a=>a.addEventListener('click',()=>{
-  const m=state.module,id=a.dataset.resource;
-  api('/api/resources/open',{module:m.id,version:m.materials.version,resource:id}).then(()=>{
-   m.opened[id]=new Date().toISOString();const badge=document.querySelector(`[data-open-state="${id}"]`);if(badge)badge.textContent='Открытие записано';
+  const moduleId=state.module?.id,userId=state.user?.id,panel=state.panel,id=a.dataset.resource,loadId=state.completionLoadId;
+  api('/api/resources/open',{module:moduleId,version:state.module.materials.version,resource:id}).then(()=>{
+   if(state.user?.id!==userId||state.module?.id!==moduleId||state.panel!==panel||state.user?.role!=='student')return;
+   if(loadId!==state.completionLoadId)return;
+   state.module.opened[id]=new Date().toISOString();const badge=document.querySelector(`[data-open-state="${id}"]`);if(badge)badge.textContent='Открытие записано';
   }).catch(()=>notify('Материал открыт, но отметка не сохранена. Повторите открытие после восстановления связи.',true));
  }));
 }
@@ -58,9 +66,8 @@ function quizPanel(){
  document.querySelectorAll('[data-quiz]').forEach(b=>b.addEventListener('click',()=>action(b,async()=>{state.quiz=await api('/api/quizzes/'+encodeURIComponent(b.dataset.quiz));state.quizIndex=0;quizPanel();})));
 }
 function progressPanel(){
- const m=state.module,sourceIds=m.materials.groups.filter(g=>g.id!=='lectures').flatMap(g=>g.items).map(r=>r.id);
- const sources=sourceIds.filter(id=>m.opened[id]).length,submitted=new Set(m.attempts.filter(a=>a.version===m.version).map(a=>a.case)).size;
- moduleShell(`<div class="eyebrow">Подготовка к подтверждению</div><h2>Прогресс модуля</h2><ul class="progress-list"><li><strong>${sources?'Открытие источника записано':'Откройте хотя бы один источник'}</strong><span>${sources} открытий в текущем списке материалов</span></li><li><strong>Кафедральная лекция требует сопоставления</strong><span>Открытие общего видеоархива не выдаётся за просмотр конкретной лекции.</span></li><li><strong>Письменные задачи: ${submitted} из ${m.cases.length}</strong><span>Считаются отправленные ответы текущей редакции.</span></li><li><strong>${m.quizzes.some(q=>q.passed)?'Есть зачтённая попытка теста':'Пройдите полный тест на 70%'}</strong><span>Все попытки хранятся отдельно; при изменении банка потребуется отдельная проверка актуальности результата.</span></li><li><strong>Семинар, OSCE и Tumor Board</strong><span>Отправленные ответы и отметки преподавателя смотрите в разделах «Семинар» и «OSCE / Tumor Board»; здесь журнал не дублируется и завершение модуля не означает. OSCE пока необязателен и не входит в условия будущего зачёта.</span></li></ul><div class="locked">Кнопку «Модуль завершён» добавим после подключения всех обязательных условий и преподавательского подтверждения. Сейчас этот экран показывает подготовку и не выставляет итоговый зачёт.</div>`);
+ moduleShell(`<div id="completion-root"><p class="muted">Загружаем чек-лист с сервера…</p></div>`);
+ loadCompletion();
 }
 function student(){
  if(!panels.some(([id])=>id===state.panel))state.panel='materials';
@@ -68,9 +75,33 @@ function student(){
  ({materials:materialsPanel,quiz:quizPanel,seminar:seminarPanel,practice:practicePanel,tools:toolsPanel,progress:progressPanel}[state.panel])();
 }
 async function teacher(){
+ if(!['answers','practice','completion'].includes(state.teacherTab))state.teacherTab='answers';
+ if(state.teacherTab==='completion'){await teacherCompletionView();return;}
+ if(state.teacherTab==='practice'){
+  const loadId=nextCompletionLoadId(),userId=state.user?.id;
+  app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Логбук практики</h1><p class="muted intro">Семинар, OSCE и Tumor Board. OSCE необязателен и не входит в условия итогового зачёта модуля.</p>${teacherNavMarkup()}<div id="teacher-practice-slot"></div>`;
+  wireTeacherNav();
+  const slot=document.querySelector('#teacher-practice-slot');
+  let rows=null,err='';
+  try{rows=await api('/api/practice/queue');}catch(e){err=e.message||'Сервис логбука недоступен.';}
+  if(!shouldApplyTeacherApp(loadId,userId,'practice'))return;
+  state.practiceQueue=rows||[];
+  const list=state.practiceQueue.map(r=>{
+   const e=r.logbook?.length?r.logbook[r.logbook.length-1]:null;
+   const badge=e?`<span class="badge ${esc(e.decision)}">${esc(pDecLabel[e.decision]||e.decision)}</span>`:'<span class="badge">На проверке</span>';
+   return `<button class="queue-item" data-prev="${r.id}"><span class="status-row">${badge}${r.stale?'<span class="badge warn">не та редакция</span>':''}<small>${esc(personName(r.student))} · ${esc(r.module)} · ${esc(pKindLabel[r.kind]||'Практика')} · ${stamp(r.created_at)}</small></span><strong>${esc(r.title||r.case)}</strong><span>${esc((r.answer||'').slice(0,150))}${(r.answer||'').length>150?'…':''}</span></button>`;
+  }).join('');
+  slot.innerHTML=`<section class="paper teacher-practice"><h2>Очередь логбука</h2>${err?`<div class="locked">Логбук практики сейчас недоступен: ${esc(err)}</div>`:list||'<p class="muted">Отправленных ответов по практике пока нет.</p>'}</section>`;
+  slot.querySelectorAll('[data-prev]').forEach(b=>b.addEventListener('click',()=>action(b,()=>practiceReview(Number(b.dataset.prev)))));
+  return;
+ }
  await teacherAnswers();
- await teacherPracticeQueue();
+ const loadId=state.completionLoadId,userId=state.user?.id;
+ if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
+ app.insertAdjacentHTML('afterbegin',teacherNavMarkup());
+ wireTeacherNav();
  const rows=await api('/api/test-results');
- app.insertAdjacentHTML('beforeend',`<section class="paper teacher-tests"><h2>Тестовые попытки ординаторов</h2><p class="muted">Полные попытки: результат рассчитан на сервере по всем вопросам. Это ещё не итоговый зачёт модуля.</p>${rows.length?rows.map(q=>`<details class="reading-group"><summary>${esc(q.student==='student-a'?'Ординатор А':'Ординатор Б')} · ${esc(q.module)} · ${q.submitted_at?(q.passed?'зачтён':'не зачтён'):'в процессе'}${q.submitted_at?' · '+q.score+'/'+q.total:''}</summary>${q.submitted_at?quizResult(q):`<p>${Object.keys(q.answers).length} из ${q.total} ответов сохранено.</p>`}</details>`).join(''):'<p class="muted">Попыток пока нет. Они появятся после запуска теста ординатором.</p>'}</section>`);
+ if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
+ app.insertAdjacentHTML('beforeend',`<section class="paper teacher-tests"><h2>Тестовые попытки ординаторов</h2><p class="muted">Полные попытки: результат рассчитан на сервере по всем вопросам. Итоговый зачёт модуля — на вкладке «Завершение модуля».</p>${rows.length?rows.map(q=>`<details class="reading-group"><summary>${esc(q.student==='student-a'?'Ординатор А':'Ординатор Б')} · ${esc(q.module)} · ${q.submitted_at?(q.passed?'зачтён':'не зачтён'):'в процессе'}${q.submitted_at?' · '+q.score+'/'+q.total:''}</summary>${q.submitted_at?quizResult(q):`<p>${Object.keys(q.answers).length} из ${q.total} ответов сохранено.</p>`}</details>`).join(''):'<p class="muted">Попыток пока нет. Они появятся после запуска теста ординатором.</p>'}</section>`);
 }
 start();

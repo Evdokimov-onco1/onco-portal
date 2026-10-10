@@ -17,6 +17,7 @@ from pilot.quiz import QuizStore
 from pilot.materials import Materials, ReadingStore
 from pilot.logbook import Logbook
 from pilot.practice import PREFIX, ApiError, Practice
+from pilot.completion import Completion
 
 ROOT = Path(__file__).resolve().parents[1]
 USERS = {
@@ -45,6 +46,7 @@ class Pilot:
         self.assignments = {'teacher': set(self.modules)}
         self.logbook = Logbook(db_path)
         self.practice = Practice(self, data)
+        self.completion = Completion(self, USERS)
         self.sessions = {}
         self.lock = threading.Lock()
 
@@ -197,6 +199,7 @@ class Handler(BaseHTTPRequestHandler):
                           '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
                           '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
                           '/practice.js': ('practice.js', 'text/javascript; charset=utf-8'),
+                          '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'),
                           '/style.css': ('style.css', 'text/css; charset=utf-8')}
                 if path in assets:
                     name, mime = assets[path]
@@ -292,6 +295,26 @@ class Handler(BaseHTTPRequestHandler):
             if not mutation and path.startswith('/api/submissions/'):
                 sid = int(path.rsplit('/', 1)[1])
                 return self.respond(200, self.pilot.submission_view(user, sid))
+            completion = self.pilot.completion
+            if not mutation and path == '/api/completion/queue':
+                return self.respond(200, completion.queue(user))
+            if not mutation and path.startswith('/api/completion/students/'):
+                rest = path.removeprefix('/api/completion/students/')
+                student_id, module_id = rest.split('/', 1)
+                return self.respond(200, completion.get_student(user, student_id, module_id))
+            if not mutation and path.startswith('/api/completion/lecture/'):
+                return self.respond(200, completion.lecture_view(user, path.removeprefix('/api/completion/lecture/')))
+            if not mutation and path.startswith('/api/completion/'):
+                module_id = path.removeprefix('/api/completion/')
+                if module_id in ('queue', 'students', 'lecture', 'submit', 'review'):
+                    raise ApiError(404, 'Страница не найдена.')
+                return self.respond(200, completion.get_own(user, module_id))
+            if mutation and path == '/api/completion/lecture':
+                return self.respond(200, completion.lecture_bind(user, body))
+            if mutation and path == '/api/completion/submit':
+                return self.respond(200, completion.submit(user, body))
+            if mutation and path == '/api/completion/review':
+                return self.respond(200, completion.review(user, body))
             if mutation and path in ('/api/answers', '/api/drafts'):
                 self.pilot.student(user)
                 module, case, version = (body.get(k) for k in ('module', 'case', 'version'))
