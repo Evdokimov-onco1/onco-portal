@@ -391,6 +391,37 @@
       ? '<div class="orp-stage"><b>Чек-лист навыков для дневника ординатора</b><ul class="orp-list orp-checklist">' + m.skills_checklist.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul></div>'
       : '';
 
+    // Все разделы остаются в DOM: переход между ними сохраняет раскрытые ответы.
+    var sections = [
+      { key: 'materials', label: 'Лекция и материалы', html:
+        '<div class="orp-stage"><b>Лекция</b><p>' + lectureLine + '</p></div>' +
+        '<div class="orp-stage"><b>Что читать</b>' + reading + '</div>' },
+      { key: 'cases', label: 'Клинические задачи', html:
+        '<div class="orp-stage"><b>Клинические задачи семинара</b>' +
+        (m.seminar_basis ? '<p class="orp-muted">' + esc(m.seminar_basis) + '</p>' : '') + casesHtml + '</div>' }
+    ];
+    if ((m.oral_discussion_questions || []).length) sections.push({ key: 'oral', label: 'Устный разбор', html:
+      '<div class="orp-stage"><b>Вопросы для устного разбора</b><ol class="orp-list">' + m.oral_discussion_questions.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ol></div>' });
+    if (nQ) sections.push({ key: 'test', label: 'Самоконтроль', html:
+      '<div class="orp-stage"><b>Самоконтроль</b><p>Тестовых заданий по модулю: ' + nQ + '. Ответ, пояснение и источник показываются после каждого вопроса.</p>' +
+      '<button type="button" class="orp-primary orp-module-test" data-id="' + esc(id) + '">Запустить тест по модулю</button></div>' });
+    if (vps.length || osce.length || tbs.length) sections.push({ key: 'practice', label: 'Практика', html:
+      '<div class="orp-stage"><b>Практика</b>' + practice + '</div>' });
+    if (tools.length || sims.length) sections.push({ key: 'tools', label: 'Инструменты', html:
+      '<div class="orp-stage"><b>Инструменты и симуляторы</b>' + instruments + '</div>' });
+    if (checklist) sections.push({ key: 'checklist', label: 'Чек-лист', html: checklist });
+
+    var sectionTabs = '<div class="orp-module-tabs" role="tablist" aria-label="Разделы модуля ' + esc(id) + '">' + sections.map(function (s, i) {
+      var tabId = 'orp-' + id + '-' + s.key;
+      return '<button type="button" class="orp-module-tab' + (i === 0 ? ' is-active' : '') + '" role="tab" id="' + tabId + '-tab" aria-controls="' + tabId +
+        '" aria-selected="' + (i === 0 ? 'true' : 'false') + '" tabindex="' + (i === 0 ? '0' : '-1') + '">' + esc(s.label) + '</button>';
+    }).join('') + '</div>';
+    var sectionPanels = sections.map(function (s, i) {
+      var tabId = 'orp-' + id + '-' + s.key;
+      return '<div class="orp-module-panel" role="tabpanel" id="' + tabId + '" aria-labelledby="' + tabId + '-tab" tabindex="0"' +
+        (i === 0 ? '' : ' hidden') + '>' + s.html + '</div>';
+    }).join('');
+
     return '<div class="orp-runner orp-module-detail">' +
       '<div class="orp-cardtop">' +
         '<span class="orp-tag">' + esc(id) + '</span>' +
@@ -405,19 +436,38 @@
         (nQ ? '<button type="button" class="orp-btn orp-module-test" data-id="' + esc(id) + '">Тест по модулю · ' + nQ + '</button>' : '') +
       '</div>' +
 
-      '<div class="orp-stage"><b>Лекция</b><p>' + lectureLine + '</p></div>' +
-      '<div class="orp-stage"><b>Что читать</b>' + reading + '</div>' +
-      '<div class="orp-stage"><b>Клинические задачи семинара</b>' +
-        (m.seminar_basis ? '<p class="orp-muted">' + esc(m.seminar_basis) + '</p>' : '') + casesHtml + '</div>' +
-      ((m.oral_discussion_questions || []).length ? '<div class="orp-stage"><b>Вопросы для устного разбора</b><ol class="orp-list">' + m.oral_discussion_questions.slice(0, 8).map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ol></div>' : '') +
-      '<div class="orp-stage"><b>Самоконтроль</b><p>Тестовых заданий по модулю: ' + nQ + '. Ответ, пояснение и источник показываются после каждого вопроса.</p>' +
-        (nQ ? '<button type="button" class="orp-primary orp-module-test" data-id="' + esc(id) + '">Запустить тест по модулю</button>' : '') + '</div>' +
-      '<div class="orp-stage"><b>Практика</b>' + practice + '</div>' +
-      '<div class="orp-stage"><b>Инструменты и симуляторы</b>' + instruments + '</div>' +
-      checklist +
+      sectionTabs + sectionPanels +
       '<div class="orp-actions"><button type="button" class="orp-btn orp-module-close">Закрыть модуль</button>' +
         '<a class="orp-btn orp-copylink" href="?module=' + esc(id) + '">Ссылка на модуль</a></div>' +
     '</div>';
+  }
+
+  function setupModuleTabs(detail) {
+    var tabs = qa('.orp-module-tab', detail);
+    var panels = qa('.orp-module-panel', detail);
+    function select(index, focus) {
+      tabs.forEach(function (tab, i) {
+        var active = i === index;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.tabIndex = active ? 0 : -1;
+        panels[i].hidden = !active;
+      });
+      if (focus) tabs[index].focus();
+    }
+    tabs.forEach(function (tab, index) {
+      tab.addEventListener('click', function () { select(index, false); });
+      tab.addEventListener('keydown', function (event) {
+        var next;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        select(next, true);
+      });
+    });
   }
 
   function setupModules(D, X, api) {
@@ -462,6 +512,7 @@
       var inline = document.createElement('div');
       inline.className = 'orp-module-inline';
       inline.innerHTML = renderModuleDetail(m, D, X);
+      setupModuleTabs(inline);
       card.insertAdjacentElement('afterend', inline);
 
       q('.orp-module-close', inline).addEventListener('click', closeDetail);
