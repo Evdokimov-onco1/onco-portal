@@ -13,6 +13,8 @@ import time
 from urllib.parse import urlsplit
 
 from pilot.store import Store
+from pilot.quiz import QuizStore
+from pilot.materials import Materials, ReadingStore
 
 ROOT = Path(__file__).resolve().parents[1]
 USERS = {
@@ -31,6 +33,10 @@ class Pilot:
     def __init__(self, db_path, data_path=ROOT / 'data/orp-data.json'):
         self.store = Store(str(db_path))
         data = json.loads(Path(data_path).read_text())
+        self.quiz = QuizStore(str(db_path))
+        self.reading = ReadingStore(db_path)
+        self.materials = Materials(data, ROOT / 'docs/audit-2026-10-10/FACULTY_VIDEO_CATALOGUE.csv')
+        self.questions = data.get('questions', [])
         self.modules = {m['module_id']: m for m in data['modules']}
         self.versions = {k: hashlib.sha256(json.dumps(m['clinical_cases'], ensure_ascii=False,
                         sort_keys=True).encode()).hexdigest()[:16] for k, m in self.modules.items()}
@@ -96,9 +102,13 @@ class Pilot:
             if teacher or cid in unlocked:
                 item.update(answer=c.get('answer', ''), sources=c.get('sources', []))
             cases.append(item)
+        content = self.materials.view(m)
         return {'id': module_id, 'title': m['module_title'], 'year': m['pedagogical_year'],
                 'version': version, 'cases': cases, 'attempts': attempts,
-                'drafts': self.store.drafts(user['id'], module_id, version) if not teacher else {}}
+                'drafts': self.store.drafts(user['id'], module_id, version) if not teacher else {},
+                'materials': content, 'opened': self.reading.get(user['id'], module_id, content['version']),
+                'question_count': len([q for q in self.questions if q['module'] == module_id]),
+                'quizzes': self.quiz.history(user['id'], module_id) if not teacher else []}
 
     def submission_view(self, user, sid):
         row = self.store.get(sid)
@@ -181,6 +191,7 @@ class Handler(BaseHTTPRequestHandler):
             if not mutation:
                 assets = {'/': ('index.html', 'text/html; charset=utf-8'),
                           '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
+                          '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
                           '/style.css': ('style.css', 'text/css; charset=utf-8')}
                 if path in assets:
                     name, mime = assets[path]
@@ -193,6 +204,15 @@ class Handler(BaseHTTPRequestHandler):
                     self.pilot.sessions.pop(old, None)
                 return self.respond(200, self.pilot.user(token), cookie=token)
             user = self.pilot.user(self.token())
+            if not mutation and path.startswith('/documents/'):
+                module_id = path.removeprefix('/documents/')
+                self.pilot.teacher(user, module_id)
+                m = self.pilot.module(module_id)
+                docx = m.get('docx', '')
+                if not docx or Path(docx).name != docx:
+                    raise ApiError(404, 'Документ не найден.')
+                return self.respond(200, (ROOT / 'modules' / docx).read_bytes(),
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             if mutation and path == '/api/logout':
                 with self.pilot.lock:
                     self.pilot.sessions.pop(self.token(), None)
@@ -210,6 +230,49 @@ class Handler(BaseHTTPRequestHandler):
                 rows = [r for r in self.pilot.store.submissions() if
                         r['module'] in self.pilot.assignments.get(user['id'], set())]
                 return self.respond(200, rows)
+            if not mutation and path == '/api/test-results':
+                if user['role'] != 'teacher':
+                    raise ApiError(403, 'Результаты группы доступны преподавателю.')
+                result = []
+                for student in USERS:
+                    if USERS[student]['role'] == 'student':
+                        for module_id in self.pilot.assignments.get(user['id'], set()):
+                            result.extend(self.pilot.quiz.history(student, module_id))
+                return self.respond(200, sorted(result, key=lambda r: r['created_at'], reverse=True))
+            if not mutation and path.startswith('/api/quizzes/'):
+                row = self.pilot.quiz.get(user['id'], path.rsplit('/', 1)[1])
+                if row is None:
+                    raise ApiError(404, 'Попытка не найдена.')
+                return self.respond(200, row)
+            if mutation and path == '/api/resources/open':
+                self.pilot.student(user)
+                module_id, resource = body.get('module'), body.get('resource')
+                if not isinstance(module_id, str) or not isinstance(resource, str):
+                    raise ApiError(400, 'Укажите материал.')
+                materials = self.pilot.materials.view(self.pilot.module(module_id))
+                if body.get('version') != materials['version']:
+                    raise ApiError(409, 'Список материалов изменился. Обновите страницу.')
+                items = [r for g in materials['groups'] for r in g['items']] + materials['faculty_videos']
+                found = next((r for r in items if r['id'] == resource and r['url']), None)
+                if found is None:
+                    raise ApiError(404, 'Ссылка на материал не найдена.')
+                self.pilot.reading.mark(user['id'], module_id, materials['version'], resource)
+                return self.respond(200, {'saved': True, 'url': found['url']})
+            if mutation and path == '/api/quizzes/start':
+                self.pilot.student(user)
+                module_id = body.get('module')
+                if not isinstance(module_id, str):
+                    raise ApiError(400, 'Укажите модуль.')
+                self.pilot.module(module_id)
+                bank = [q for q in self.pilot.questions if q['module'] == module_id]
+                return self.respond(200, self.pilot.quiz.start(user['id'], module_id, bank, body.get('key')))
+            if mutation and path in ('/api/quizzes/save', '/api/quizzes/submit'):
+                self.pilot.student(user)
+                attempt_id = body.get('id')
+                if not isinstance(attempt_id, str) or self.pilot.quiz.get(user['id'], attempt_id) is None:
+                    raise ApiError(404, 'Попытка не найдена.')
+                method = self.pilot.quiz.submit if path.endswith('/submit') else self.pilot.quiz.save
+                return self.respond(200, method(user['id'], attempt_id, body.get('answers')))
             if not mutation and path.startswith('/api/submissions/'):
                 sid = int(path.rsplit('/', 1)[1])
                 return self.respond(200, self.pilot.submission_view(user, sid))
