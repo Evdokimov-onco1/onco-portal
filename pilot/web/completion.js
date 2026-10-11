@@ -129,7 +129,8 @@ function wireTeacherNav(){
 function lectureCandidatePreview(candidates,sel){
  const c=candidates.find(x=>x.id===sel);
  if(!c?.url)return '<p class="help" id="completionCandPreview">Выберите запись и откройте ссылку для проверки перед подтверждением привязки.</p>';
- return `<p class="help" id="completionCandPreview">Проверка перед привязкой: <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">Открыть выбранную запись ↗</a></p>`;
+ const prov=c.suggested?` Границы предварительные${c.truncation_risk?', возможен обрыв записи':''} — проверьте по звуку.`:'';
+ return `<p class="help" id="completionCandPreview">Проверка перед привязкой: <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">Открыть выбранную запись ↗</a>${esc(prov)}</p>`;
 }
 const lectureCoverageStatusLabel={bound:'Привязана',candidates:'Есть кандидаты',missing:'Нет кандидатов'};
 const lectureCoverageStatusHelp='«Привязана» — только точная привязка к текущей редакции материалов, не готовность всего модуля. Кандидаты из материалов требуют проверки преподавателем; открытие ссылки не доказывает просмотр.';
@@ -218,7 +219,7 @@ function lectureBindingStatusMarkup(lecture,lErr,bindSel){
  if(lErr)return `<div class="locked">Не удалось загрузить привязку лекции: ${esc(lErr)}</div><button type="button" id="lectureBindingRetry">Повторить загрузку привязки</button>`;
  const candidates=lecture?.candidates||[];
  const sameAsCurrent=lecture?.current?.resource&&bindSel===lecture.current.resource;
- return `${lecture?.current?`<p class="help">Текущая привязка: <a href="${esc(lecture.current.url)}" target="_blank" rel="noopener noreferrer">${esc(lecture.current.title)}</a> · ${stamp(lecture.current.created_at)}</p>`:'<p class="help">Привязки нет — ординатор не сможет засчитать лекцию, пока вы не выберете запись из списка кафедральных видео с действующей ссылкой.</p>'}${candidates.length?`<label for="completionCand">Кандидат из материалов модуля</label><select id="completionCand"><option value="">— выберите запись —</option>${candidates.map(c=>`<option value="${esc(c.id)}" ${c.id===bindSel?'selected':''}>${esc(c.title)}</option>`).join('')}</select>${lectureCandidatePreview(candidates,bindSel)}<div class="actions"><button class="primary" id="completionBind" type="button" ${!bindSel||sameAsCurrent?'disabled':''}>Подтвердить привязку</button></div>`:'<div class="locked">Нет допустимых кафедральных записей с URL в текущих материалах. Сначала добавьте в модуль кафедральные видео с рабочей ссылкой.</div>'}`;
+ return `${lecture?.current?`<p class="help">Текущая привязка: <a href="${esc(lecture.current.url)}" target="_blank" rel="noopener noreferrer">${esc(lecture.current.title)}</a> · ${stamp(lecture.current.created_at)}</p>`:'<p class="help">Привязки нет — ординатор не сможет засчитать лекцию, пока вы не выберете запись из списка кафедральных видео с действующей ссылкой.</p>'}${candidates.length?`<label for="completionCand">Кандидат из материалов модуля</label><select id="completionCand"><option value="">— выберите запись —</option>${candidates.map(c=>`<option value="${esc(c.id)}" ${c.id===bindSel?'selected':''}>${esc(c.title)}${c.suggested?' · предложение, границы предварительные':''}</option>`).join('')}</select>${lectureCandidatePreview(candidates,bindSel)}<div class="actions"><button class="primary" id="completionBind" type="button" ${!bindSel||sameAsCurrent?'disabled':''}>Подтвердить привязку</button></div>`:'<div class="locked">Нет допустимых кафедральных записей с URL в текущих материалах. Сначала добавьте в модуль кафедральные видео с рабочей ссылкой.</div>'}`;
 }
 async function teacherCompletionView(){
  const loadId=nextCompletionLoadId(),userId=state.user?.id;

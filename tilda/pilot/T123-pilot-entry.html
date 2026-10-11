@@ -1,0 +1,61 @@
+<!--
+  T123 «HTML-код» — точка входа в новый пилотный портал (Python-версия с БД).
+  Статус: ПОДГОТОВЛЕННЫЙ ШАБЛОН, по умолчанию ВЫКЛЮЧЕН (кнопка неактивна,
+  ссылка не задана).
+
+  Активация (после выполнения чеклиста docs/TILDA_PILOT_RELEASE.md):
+    1) вписать проверенный HTTPS-адрес развёрнутого бэкенда в data-pilot-url;
+    2) data-pilot-enabled="true".
+  iframe и сквозная авторизация здесь не реализованы: это прямая ссылка на
+  отдельное приложение. Tilda Members не является входом в пилот — в пилоте
+  своя учётная запись.
+-->
+<div id="oncoPilotEntry" data-pilot-url="" data-pilot-enabled="false">
+  <style>
+    #oncoPilotEntry .pilot-entry{max-width:720px;margin:0 auto;padding:28px 24px;border:1px solid #d8e2e6;border-radius:14px;background:#f7fafb;font-family:inherit}
+    #oncoPilotEntry h2{margin:0 0 8px;font-size:22px}
+    #oncoPilotEntry p{margin:6px 0;color:#4a5a63;font-size:15px;line-height:1.5}
+    #oncoPilotEntry .pilot-entry__link{display:inline-block;margin-top:14px;padding:12px 22px;border-radius:10px;background:#1f8a8a;color:#fff;text-decoration:none;font-weight:600}
+    #oncoPilotEntry .pilot-entry__link[aria-disabled="true"]{background:#9fb4bb;cursor:default}
+    #oncoPilotEntry .pilot-entry__note{margin-top:12px;font-size:13px;color:#7a8a92}
+  </style>
+  <section class="pilot-entry">
+    <h2>Учебный портал ординатуры — новая версия</h2>
+    <p>Пилотная версия портала: разделы модулей, прогресс, тесты с порогом 70%,
+       задачи и логбук практики, записи занятий с замечаниями по границам.</p>
+    <a class="pilot-entry__link" aria-disabled="true" tabindex="-1">Открыть пилотный портал</a>
+    <p class="pilot-entry__note">Пилот ещё не подключён: идёт подготовка сервера
+       и учётных записей. Кнопка станет активной после запуска.</p>
+  </section>
+  <script>
+    (function () {
+      var root = document.getElementById('oncoPilotEntry');
+      if (!root) return;
+      var url = root.getAttribute('data-pilot-url') || '';
+      var enabled = root.getAttribute('data-pilot-enabled') === 'true';
+      var link = root.querySelector('.pilot-entry__link');
+      var note = root.querySelector('.pilot-entry__note');
+      if (!link) return;
+      var safeUrl = null;
+      try {
+        var u = new URL(url);
+        var h = (u.hostname || '').toLowerCase();
+        var local = h === 'localhost' || h === '::1' || h === '[::1]' ||
+                    /^127\./.test(h) || h.endsWith('.localhost');
+        if (u.protocol === 'https:' && !u.username && !u.password && h && !local) {
+          safeUrl = u.href;
+        }
+      } catch (e) { /* невалидный URL — остаётся выключенным */ }
+      if (enabled && safeUrl) {
+        link.setAttribute('href', safeUrl);
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+        link.removeAttribute('aria-disabled');
+        link.removeAttribute('tabindex');
+        if (note) note.textContent = 'Откроется отдельное приложение пилота — потребуется вход в пилот.';
+      } else {
+        link.addEventListener('click', function (e) { e.preventDefault(); });
+      }
+    })();
+  </script>
+</div>

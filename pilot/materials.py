@@ -17,12 +17,53 @@ def http_url(value):
 
 
 class Materials:
-    def __init__(self, data, catalogue_path=None):
+    def __init__(self, data, catalogue_path=None, suggestions_path=None):
         self.data = data
         self.videos = []
         if catalogue_path and Path(catalogue_path).exists():
             with Path(catalogue_path).open(encoding='utf-8-sig', newline='') as f:
                 self.videos = list(csv.DictReader(f))
+        self.suggestions = {'videos': {}, 'lectures': []}
+        if suggestions_path and Path(suggestions_path).exists():
+            self.set_suggestions(json.loads(Path(suggestions_path).read_text(encoding='utf-8')))
+
+    def set_suggestions(self, raw):
+        """Preview map 'onco-video-links/v1': additive lecture suggestions only."""
+        videos, lectures = {}, []
+        if isinstance(raw, dict) and raw.get('schema') == 'onco-video-links/v1':
+            videos = {v['video_id']: v for v in raw.get('videos', [])
+                      if isinstance(v, dict) and isinstance(v.get('video_id'), str)}
+            lectures = [l for l in raw.get('lectures', [])
+                        if isinstance(l, dict) and isinstance(l.get('lecture_id'), str)]
+        self.suggestions = {'videos': videos, 'lectures': lectures}
+
+    def _suggested_videos(self, module_id):
+        """Provisional per-lecture suggestions for one module; never auto-approved."""
+        out = []
+        for lec in self.suggestions['lectures']:
+            if module_id not in lec.get('modules', []):
+                continue
+            video = self.suggestions['videos'].get(lec.get('video_id'), {})
+            out.append({
+                'id': 'suggested-' + lec['lecture_id'],
+                'lecture_id': lec['lecture_id'],
+                'video_id': lec.get('video_id', ''),
+                'title': lec.get('title', ''),
+                'speaker': lec.get('speaker', ''),
+                'note': lec.get('speaker', ''),
+                'url': http_url(lec.get('youtube_start_url')) or http_url(lec.get('youtube_url')),
+                'mp4_url': http_url(video.get('mp4_url')),
+                'kind': 'suggested_video',
+                'suggested': True,
+                'boundary_status': 'provisional',
+                'launch_offset_seconds': lec.get('launch_offset_seconds'),
+                'estimated_start': lec.get('estimated_start'),
+                'estimated_end': lec.get('estimated_end'),
+                'truncation_risk': bool(lec.get('truncation_risk')),
+                'truncation_warning': lec.get('truncation_warning'),
+                'mapping_status': 'предложение по карте 2026-10-11; преподавателем не утверждено',
+                'playback_status': 'границы предварительные; по звуку не проверено'})
+        return out
 
     def view(self, m):
         module_id = m['module_id']
@@ -69,6 +110,9 @@ class Materials:
                   'osce': osce, 'tumor_board': boards, 'virtual_patients': vps, 'tools': tools,
                   'simulators': sims, 'docx': m.get('docx', '')}
         result['version'] = hashlib.sha256(json.dumps(result, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+        # Suggestions are appended after hashing: they must not change the
+        # materials version or invalidate existing teacher bindings/opens.
+        result['faculty_videos'] = candidates + self._suggested_videos(module_id)
         return result
 
 

@@ -369,7 +369,9 @@ class Completion:
     def lecture_view(self, user, module_id):
         self.pilot.teacher(user, module_id)
         materials = self._materials(module_id)
-        candidates = [{'id': v['id'], 'title': v['title'], 'url': v['url']}
+        candidates = [{'id': v['id'], 'title': v['title'], 'url': v['url'],
+                       'suggested': bool(v.get('suggested')),
+                       'truncation_risk': bool(v.get('truncation_risk'))}
                       for v in materials['faculty_videos'] if v.get('url')]
         conn = self._connect()
         try:

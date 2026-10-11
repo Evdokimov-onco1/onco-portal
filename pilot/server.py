@@ -37,7 +37,8 @@ class Pilot:
         data = json.loads(Path(data_path).read_text())
         self.quiz = QuizStore(str(db_path))
         self.reading = ReadingStore(db_path)
-        self.materials = Materials(data, ROOT / 'docs/audit-2026-10-10/FACULTY_VIDEO_CATALOGUE.csv')
+        self.materials = Materials(data, ROOT / 'docs/audit-2026-10-10/FACULTY_VIDEO_CATALOGUE.csv',
+                                   ROOT / 'data' / 'video-suggestions.json')
         self.questions = data.get('questions', [])
         self.modules = {m['module_id']: m for m in data['modules']}
         self.versions = {k: hashlib.sha256(json.dumps(m['clinical_cases'], ensure_ascii=False,
@@ -154,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; media-src 'self' https://video.rosoncoweb.ru; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         if cookie is not None:
             self.send_header('Set-Cookie', f'{self.cookie_name}={cookie}; HttpOnly; SameSite=Strict; Path=/; Max-Age={28800 if cookie else 0}')
         self.end_headers()
