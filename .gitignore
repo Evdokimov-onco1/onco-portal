@@ -11,3 +11,9 @@ __pycache__/
 tilda/export-*/images/
 tilda/export-*/js/
 tilda/export-*/css/
+
+# Local deployment outputs and private account material
+deploy/timeweb/dist/
+**/staging-credentials.json
+**/users.json
+**/wsgi-config.json

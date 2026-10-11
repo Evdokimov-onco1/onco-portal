@@ -2,7 +2,7 @@
 const app = document.querySelector('#app');
 const identity = document.querySelector('#identity');
 const notice = document.querySelector('#notice');
-const state = {user:null, modules:[], module:null, caseId:'C1', edits:{}, dirty:new Set(), pending:{}, queue:[], filter:'pending', panel:new URLSearchParams(location.search).get('panel')||'materials', quiz:null, practice:null, sel:{}, practiceQueue:null, completionLoadId:0, practiceLoadId:0, teacherTab:null};
+const state = {user:null, authConfig:{enabled:false,registration:false,hosted:false}, authView:'login', modules:[], module:null, caseId:'C1', edits:{}, dirty:new Set(), pending:{}, queue:[], filter:'pending', panel:new URLSearchParams(location.search).get('panel')||'materials', quiz:null, practice:null, sel:{}, practiceQueue:null, completionLoadId:0, practiceLoadId:0, teacherTab:null};
 const esc = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp = s => new Date(s).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'});
 const latest = a => a.reviews.length ? a.reviews[a.reviews.length-1] : null;
@@ -22,13 +22,56 @@ async function action(button,fn){
 }
 function safeLeave(){return !state.dirty.size || confirm('Есть несохранённый текст. Покинуть страницу и потерять его?');}
 window.addEventListener('beforeunload',e=>{if(state.dirty.size){e.preventDefault();e.returnValue='';}});
+function applyDemoBanner(){
+ const b=document.querySelector('#demoBanner');
+ if(!b)return;
+ b.hidden=!!state.authConfig.enabled||!!state.authConfig.hosted;
+}
+function parseAuthFragment(){
+ const hash=location.hash.replace(/^#/,'');
+ if(!hash)return null;
+ const eq=hash.indexOf('=');
+ if(eq<1)return null;
+ const kind=hash.slice(0,eq),token=hash.slice(eq+1);
+ if((kind!=='verify'&&kind!=='reset')||!token)return null;
+ history.replaceState(null,'',location.pathname+location.search);
+ return {kind,token};
+}
 function header(){
- identity.innerHTML=state.user?`<span>${esc(state.user.name)} · демо</span><button id="logout">Выйти</button>`:'';
+ const tag=state.authConfig.enabled?'': ' · демо';
+ identity.innerHTML=state.user?`<span>${esc(state.user.name)}${tag}</span><button id="logout">Выйти</button>`:'';
  document.querySelector('#logout')?.addEventListener('click',e=>{if(!safeLeave())return;action(e.target,async()=>{nextCompletionLoadId();const was=state.user;await api('/api/logout',{});invalidatePracticeLoads();invalidateCompletionLoads();if(state.user!==was)return;state.user=null;state.teacherTab=null;state.teacherCompletionModule=null;state.teacherCompletionReview=null;state.dirty.clear();state.edits={};state.pending={};login();});});
 }
+function showTokenPasswordForm(kind,token){
+ header();
+ const isVerify=kind==='verify';
+ app.innerHTML=`<section class="paper login auth-form"><div class="eyebrow">Учебный кабинет</div><h1>${isVerify?'Подтверждение регистрации':'Новый пароль'}</h1><p class="muted">${isVerify?'Задайте пароль для входа в кабинет. Ссылка одноразовая.':'Введите новый пароль для входа.'}</p><form id="tokenForm"><label for="newpass">Пароль (не менее 12 символов)</label><input id="newpass" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><label for="newpass2">Повторите пароль</label><input id="newpass2" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button class="primary" type="submit">${isVerify?'Сохранить и перейти ко входу':'Сохранить пароль'}</button></form><p class="auth-links"><button type="button" class="linkish" id="toLogin">Ко входу</button></p></section>`;
+ document.querySelector('#toLogin').addEventListener('click',()=>{state.authView='login';login();});
+ document.querySelector('#tokenForm').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const p=document.querySelector('#newpass').value,p2=document.querySelector('#newpass2').value;if(p!==p2)throw new Error('Пароли не совпадают.');const path=isVerify?'/api/auth/verify':'/api/auth/reset';const data=await api(path,{token,password:p});state.user=null;notify(data.message||'Готово.');state.authView='login';login();});});
+}
 function login(){
- header();app.innerHTML=`<section class="paper login"><div class="eyebrow">Учебный кабинет · пилот</div><h1>От решения задачи<br>к обратной связи</h1><p class="muted">Сохраните собственное рассуждение, сравните его с эталоном и получите комментарий преподавателя.</p><form id="login"><label for="username">Демонстрационный аккаунт</label><select id="username"><option value="student-a">Ординатор А</option><option value="student-b">Ординатор Б</option><option value="teacher">Преподаватель</option></select><label for="password">Пароль</label><input id="password" type="password" autocomplete="current-password" required><button class="primary" type="submit">Войти в кабинет</button></form><details open><summary>Доступы для проверки</summary><p>Ординатор А: <code>demo-student-a</code><br>Ординатор Б: <code>demo-student-b</code><br>Преподаватель: <code>demo-teacher</code></p><p>Это тестовые аккаунты на этом компьютере. Регистрация реальных участников появится после подключения авторизации.</p></details></section>`;
- document.querySelector('#login').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{state.user=await api('/api/login',{username:document.querySelector('#username').value,password:document.querySelector('#password').value});state.modules=await api('/api/modules');await home();});});
+ header();applyDemoBanner();
+ if(state.authView==='register')return registerForm();
+ if(state.authView==='forgot')return forgotForm();
+ const hosted=!!state.authConfig.hosted||!!state.authConfig.enabled;
+ const userField=hosted?`<label for="username">Электронная почта или логин</label><input id="username" type="text" inputmode="email" autocomplete="username" required>`:`<label for="username">Демонстрационный аккаунт</label><select id="username"><option value="student-a">Ординатор А</option><option value="student-b">Ординатор Б</option><option value="teacher">Преподаватель</option></select>`;
+ const extras=hosted?`<p class="auth-links">${state.authConfig.registration?'<button type="button" class="linkish" id="goRegister">Регистрация</button> · ':''}<button type="button" class="linkish" id="goForgot">Забыли пароль?</button></p>`:`<details open><summary>Доступы для проверки</summary><p>Ординатор А: <code>demo-student-a</code><br>Ординатор Б: <code>demo-student-b</code><br>Преподаватель: <code>demo-teacher</code></p><p>Это тестовые аккаунты на этом компьютере.</p></details>`;
+ app.innerHTML=`<section class="paper login"><div class="eyebrow">Учебный кабинет · пилот</div><h1>От решения задачи<br>к обратной связи</h1><p class="muted">Сохраните собственное рассуждение, сравните его с эталоном и получите комментарий преподавателя.</p><form id="login">${userField}<label for="password">Пароль</label><input id="password" type="password" autocomplete="current-password" required><button class="primary" type="submit">Войти в кабинет</button></form>${extras}</section>`;
+ document.querySelector('#goRegister')?.addEventListener('click',()=>{state.authView='register';registerForm();});
+ document.querySelector('#goForgot')?.addEventListener('click',()=>{state.authView='forgot';forgotForm();});
+ document.querySelector('#login').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const u=hosted?document.querySelector('#username').value.trim():document.querySelector('#username').value;state.user=await api('/api/login',{username:u,password:document.querySelector('#password').value});state.modules=await api('/api/modules');await home();});});
+}
+function registerForm(){
+ header();applyDemoBanner();
+ app.innerHTML=`<section class="paper login auth-form"><div class="eyebrow">Регистрация</div><h1>Участник ординатуры</h1><p class="muted">Укажите рабочую почту. Мы отправим ссылку для подтверждения и установки пароля.</p><form id="registerForm"><label for="regEmail">Электронная почта</label><input id="regEmail" type="email" autocomplete="email" required><label for="regName">Имя и фамилия</label><input id="regName" type="text" autocomplete="name" minlength="2" maxlength="120" required><button class="primary" type="submit">Отправить ссылку</button></form><p class="auth-links"><button type="button" class="linkish" id="toLogin">Уже есть аккаунт — войти</button></p></section>`;
+ document.querySelector('#toLogin').addEventListener('click',()=>{state.authView='login';login();});
+ document.querySelector('#registerForm').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const data=await api('/api/auth/register',{email:document.querySelector('#regEmail').value.trim(),name:document.querySelector('#regName').value.trim()});notify(data.message||'Проверьте почту.');state.authView='login';login();});});
+}
+function forgotForm(){
+ header();applyDemoBanner();
+ app.innerHTML=`<section class="paper login auth-form"><div class="eyebrow">Восстановление</div><h1>Забыли пароль?</h1><p class="muted">Если аккаунт с этой почтой есть, мы отправим ссылку для нового пароля.</p><form id="forgotForm"><label for="fgEmail">Электронная почта</label><input id="fgEmail" type="email" autocomplete="email" required><button class="primary" type="submit">Отправить ссылку</button></form><p class="auth-links"><button type="button" class="linkish" id="toLogin">Вернуться ко входу</button></p></section>`;
+ document.querySelector('#toLogin').addEventListener('click',()=>{state.authView='login';login();});
+ document.querySelector('#forgotForm').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const data=await api('/api/auth/forgot',{email:document.querySelector('#fgEmail').value.trim()});notify(data.message||'Проверьте почту.');state.authView='login';login();});});
 }
 async function home(){header();if(state.user.role==='teacher'){invalidateCompletionLoads();await teacher();}else await loadModule(new URLSearchParams(location.search).get('module')||'M01');}
 async function loadModule(id){invalidatePracticeLoads();invalidateCompletionLoads();state.module=await api('/api/modules/'+encodeURIComponent(id));state.caseId='C1';state.edits={};state.dirty.clear();state.quiz=null;state.quizStartKey=null;state.sel={};student();}
@@ -53,7 +96,7 @@ async function teacherAnswers(){
  const latestCases=[];const seen=new Set();for(const a of state.queue){const k=[a.student,a.module,a.case,a.version].join(':');if(!seen.has(k)){seen.add(k);latestCases.push(a);}}
  const pending=latestCases.filter(a=>!latest(a)).length;
  const filtered=state.filter==='all'?latestCases:latestCases.filter(a=>state.filter==='pending'?!latest(a):latest(a)?.decision===state.filter);
- app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Ответы ординаторов</h1><p class="muted intro">Проверьте рассуждение, оставьте комментарий и примите ответ либо верните его на доработку. Это оценка отдельной задачи; итоговый зачёт модуля здесь ещё не выставляется.</p><div class="metrics"><div><strong>${pending}</strong><span>ожидают проверки</span></div><div><strong>${state.queue.length}</strong><span>отправленных версий</span></div></div><section class="paper"><div class="queue-toolbar"><h2>Очередь проверки</h2><label>Показать <select id="queueFilter"><option value="pending">На проверке</option><option value="returned">На доработке</option><option value="accepted">Принятые</option><option value="all">Все ответы</option></select></label><button id="refresh">Обновить</button></div>${filtered.length?filtered.map(a=>`<button class="queue-item" data-review="${a.id}"><span class="status-row">${badge(a)}<small>${esc(a.student==='student-a'?'Ординатор А':'Ординатор Б')} · ${esc(a.module)} · ${esc(a.case)} · ${stamp(a.created_at)}</small></span><strong>${esc(state.modules.find(m=>m.id===a.module)?.title||a.module)}</strong><span>${esc(a.answer.slice(0,150))}${a.answer.length>150?'…':''}</span></button>`).join(''):'<div class="empty">В этой категории пока нет ответов.<br>Новые работы появятся после отправки ординатором.</div>'}</section>`;
+ app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Ответы ординаторов</h1><p class="muted intro">Проверьте рассуждение, оставьте комментарий и примите ответ либо верните его на доработку. Это оценка отдельной задачи; итоговый зачёт модуля здесь ещё не выставляется.</p><div class="metrics"><div><strong>${pending}</strong><span>ожидают проверки</span></div><div><strong>${state.queue.length}</strong><span>отправленных версий</span></div></div><section class="paper"><div class="queue-toolbar"><h2>Очередь проверки</h2><label>Показать <select id="queueFilter"><option value="pending">На проверке</option><option value="returned">На доработке</option><option value="accepted">Принятые</option><option value="all">Все ответы</option></select></label><button id="refresh">Обновить</button></div>${filtered.length?filtered.map(a=>`<button class="queue-item" data-review="${a.id}"><span class="status-row">${badge(a)}<small>${esc(a.student_name||a.student)} · ${esc(a.module)} · ${esc(a.case)} · ${stamp(a.created_at)}</small></span><strong>${esc(state.modules.find(m=>m.id===a.module)?.title||a.module)}</strong><span>${esc(a.answer.slice(0,150))}${a.answer.length>150?'…':''}</span></button>`).join(''):'<div class="empty">В этой категории пока нет ответов.<br>Новые работы появятся после отправки ординатором.</div>'}</section>`;
  document.querySelector('#queueFilter').value=state.filter;
  document.querySelector('#queueFilter').addEventListener('change',e=>{state.filter=e.target.value;action(e.target,teacher);});
  document.querySelector('#refresh').addEventListener('click',e=>action(e.target,teacher));
@@ -64,10 +107,22 @@ async function review(id){
  const row=await api('/api/submissions/'+id),m=await api('/api/modules/'+row.module),c=m.cases.find(x=>x.id===row.case);
  if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
  const historyRows=state.queue.filter(a=>a.student===row.student&&a.module===row.module&&a.case===row.case);
- app.innerHTML=`<button class="back" id="back">← К очереди</button><div class="eyebrow">${esc(row.module)} · ${esc(row.student==='student-a'?'Ординатор А':'Ординатор Б')}</div><h1>Проверка ответа №${row.id}</h1><section class="paper"><div class="status-row">${badge(row)}<span class="muted">Отправлен ${stamp(row.created_at)}</span></div><h2>${esc(c?.title||row.case)}</h2>${row.version!==m.version?'<div class="locked">Исходный материал изменился после отправки. Ниже текущая редакция; не принимайте работу без сверки прежнего задания.</div>':''}<div class="vignette text">${esc(c?.vignette||'')}</div><p class="questions text">${esc(c?.questions||'')}</p><h3>Ответ ординатора</h3><div class="text">${esc(row.answer)}</div><details class="model"><summary>Свериться с эталоном</summary><div class="text">${esc(c?.answer||'')}</div></details><div class="separator"></div><label for="comment">Комментарий преподавателя</label><textarea id="comment" maxlength="10000" placeholder="Что получилось и что стоит уточнить…"></textarea><p class="help">При возврате укажите, что именно необходимо доработать.</p><div class="actions"><button class="primary" data-decision="accepted">Принять ответ</button><button data-decision="returned">Вернуть на доработку</button></div><details class="history" open><summary>История этой задачи · ${historyRows.length}</summary>${answerHistory(historyRows)}</details></section>`;
+ app.innerHTML=`<button class="back" id="back">← К очереди</button><div class="eyebrow">${esc(row.module)} · ${esc(row.student_name||row.student)}</div><h1>Проверка ответа №${row.id}</h1><section class="paper"><div class="status-row">${badge(row)}<span class="muted">Отправлен ${stamp(row.created_at)}</span></div><h2>${esc(c?.title||row.case)}</h2>${row.version!==m.version?'<div class="locked">Исходный материал изменился после отправки. Ниже текущая редакция; не принимайте работу без сверки прежнего задания.</div>':''}<div class="vignette text">${esc(c?.vignette||'')}</div><p class="questions text">${esc(c?.questions||'')}</p><h3>Ответ ординатора</h3><div class="text">${esc(row.answer)}</div><details class="model"><summary>Свериться с эталоном</summary><div class="text">${esc(c?.answer||'')}</div></details><div class="separator"></div><label for="comment">Комментарий преподавателя</label><textarea id="comment" maxlength="10000" placeholder="Что получилось и что стоит уточнить…"></textarea><p class="help">При возврате укажите, что именно необходимо доработать.</p><div class="actions"><button class="primary" data-decision="accepted">Принять ответ</button><button data-decision="returned">Вернуть на доработку</button></div><details class="history" open><summary>История этой задачи · ${historyRows.length}</summary>${answerHistory(historyRows)}</details></section>`;
  document.querySelector('#comment').addEventListener('input',()=>state.dirty.add('review'));
  document.querySelector('#back').addEventListener('click',e=>{if(!safeLeave())return;state.dirty.clear();state.teacherTab='answers';action(e.target,teacher);});
  const pending={};
  document.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>action(b,async()=>{const comment=document.querySelector('#comment').value.trim(),decision=b.dataset.decision;if(decision==='returned'&&!comment)throw new Error('Укажите, что нужно доработать.');const fp=decision+comment;if(!pending[fp])pending[fp]=crypto.randomUUID();await api('/api/reviews',{submission_id:id,decision,comment,key:pending[fp]});state.dirty.clear();await teacher();notify(decision==='accepted'?'Ответ принят. Ординатор увидит отметку в своём кабинете.':'Ответ возвращён с комментарием. История сохранена.');})));
 }
-async function start(){try{state.user=await api('/api/session');state.modules=await api('/api/modules');await home();}catch(e){login();}}
+function applyAuthDeepLink(){
+ const p=new URLSearchParams(location.search).get('auth');
+ if(p==='register'||p==='forgot'||p==='login')state.authView=p;
+}
+async function start(){
+ applyAuthDeepLink();
+ try{state.authConfig=await api('/api/auth/config');}catch(e){state.authConfig={enabled:false,registration:false,hosted:true};}
+ applyDemoBanner();
+ const frag=parseAuthFragment();
+ if(frag){showTokenPasswordForm(frag.kind,frag.token);return;}
+ if(state.authView!=='login'){login();return;}
+ try{state.user=await api('/api/session');state.modules=await api('/api/modules');await home();}catch(e){login();}
+}

@@ -1,0 +1,10 @@
+# Staging-приложение портала на Timeweb shared (mod_wsgi ExecCGI,
+# по официальной доке: https://timeweb.com/ru/docs/virtualnyj-hosting/prilozheniya-i-frejmvorki/django/).
+# Класть ТОЛЬКО в изолированный staging-каталог (второй сайт тарифа или
+# отдельный поддомен), НЕ в каталог действующего сайта.
+Options +ExecCGI
+Options -Indexes
+AddHandler wsgi-script .py
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ app.py/$1 [QSA,PT]

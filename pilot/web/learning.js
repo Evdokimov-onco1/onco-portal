@@ -32,10 +32,113 @@ function wireResources(){
   }).catch(()=>notify('Материал открыт, но отметка не сохранена. Повторите открытие после восстановления связи.',true));
  }));
 }
+function formatTimecode(sec){
+ const s=Math.max(0,Math.floor(Number(sec)||0));
+ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+function parseTimecode(s){
+ const t=String(s||'').trim();
+ if(/^\d+$/.test(t))return Number(t);
+ const p=t.split(':').map(x=>/^\d+$/.test(x)?Number(x):NaN);
+ if(p.length<2||p.length>3||p.some(Number.isNaN))return null;
+ if(p.length===2)return p[1]<60?p[0]*60+p[1]:null;
+ return p[1]<60&&p[2]<60?p[0]*3600+p[1]*60+p[2]:null;
+}
+function videoFeedbackPayload(moduleId,v,timecode,comment){
+ return {schema:'onco-video-feedback/v1',module:moduleId,lecture_id:v.lecture_id||null,
+  video_id:v.video_id||null,video_url:v.url||'',timecode_seconds:timecode,
+  comment:String(comment||'').trim(),boundary_status:v.boundary_status||'provisional',
+  generated_at:new Date().toISOString()};
+}
+function suggestedVideoMarkup(v){
+ const open=state.module.opened[v.id];
+ const offset=v.launch_offset_seconds!=null?` · старт ~${formatTimecode(v.launch_offset_seconds)}`:'';
+ const warn=v.truncation_risk?`<p class="help warn">${esc(v.truncation_warning||'Возможен обрыв записи — полнота лекции не подтверждена.')}</p>`:'';
+ return `<li class="resource-item suggested-video"><div><strong>${esc(v.title)}</strong><p class="muted">${esc(v.speaker||'')}${esc(offset)}</p><p class="help">Запись предварительно сопоставлена с модулем; границы лекции ориентировочные. Зачёта нет, пока преподаватель не подтвердит запись.</p>${warn}<div class="actions">${v.mp4_url?`<button type="button" data-vplay="${esc(v.id)}">Показать запись в плеере</button>`:''}${v.url?`<a class="video-fallback" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer" data-resource="${esc(v.id)}">Открыть на YouTube с таймкодом ↗</a>`:''}</div><details class="video-feedback"><summary>Замечание к границам записи</summary><label>Таймкод (мм:сс)<input type="text" class="vfb-time" inputmode="numeric" placeholder="12:34"></label><div class="actions"><button type="button" class="vfb-capture" data-vcap="${esc(v.id)}">Подставить текущее время плеера</button></div><label>Комментарий<textarea class="vfb-comment" maxlength="2000" placeholder="Что проверить по границе…"></textarea></label><div class="actions"><button type="button" data-vfb="${esc(v.id)}">Скачать замечание (JSON)</button></div><p class="help muted">В файле только модуль, запись, таймкод и комментарий — без имени и аккаунта.</p></details></div><small class="resource-status" data-open-state="${esc(v.id)}">${open?'Открытие записано':v.url?'Открыть с таймкодом ↗':'Ссылка не указана'}</small></li>`;
+}
+function wireSuggestedPlayer(){
+ const section=document.querySelector('[data-suggested-player]');
+ if(!section)return;
+ const video=section.querySelector('video'),status=section.querySelector('[data-vplayer-status]'),go=section.querySelector('[data-vplayer-go]'),warn=section.querySelector('[data-vplayer-warn]');
+ const items=(state.module?.materials?.faculty_videos||[]).filter(v=>v.kind==='suggested_video');
+ section._vidSeq=0;section._vidLecture=null;section._vidReady=false;
+ video.addEventListener?.('error',()=>{
+  if(video._vidSeq!==section._vidSeq)return;
+  section._vidReady=false;if(go)go.hidden=true;
+  if(status)status.textContent='Не удалось загрузить запись — откройте её на YouTube по ссылке у лекции.';
+ });
+ document.querySelectorAll('[data-vplay]').forEach(b=>b.addEventListener('click',()=>{
+  const v=items.find(x=>x.id===b.dataset.vplay);
+  if(!v||!v.mp4_url)return;
+  const seq=++section._vidSeq;section._vidLecture=v.id;section._vidReady=false;
+  video._vidSeq=seq;
+  const moduleId=state.module?.id,userId=state.user?.id,matVersion=state.module?.materials?.version;
+  video.hidden=false;if(go)go.hidden=true;
+  if(warn){warn.hidden=!v.truncation_risk;if(v.truncation_risk)warn.textContent=v.truncation_warning||'Возможен обрыв записи — полнота лекции не подтверждена.';}
+  if(status)status.textContent='Загрузка записи «'+v.title+'»…';
+  video.pause?.();
+  const onMeta=()=>{
+   video.removeEventListener?.('loadedmetadata',onMeta);
+   if(section._vidSeq!==seq||section._vidLecture!==v.id||video.isConnected===false)return;
+   try{video.currentTime=v.launch_offset_seconds||0;}catch(e){}
+   section._vidReady=true;
+   if(status)status.textContent=`Готово: старт ~${formatTimecode(v.launch_offset_seconds||0)}. Воспроизведение — только по вашей кнопке.`;
+   if(go)go.hidden=false;
+  };
+  video.addEventListener?.('loadedmetadata',onMeta);
+  video.src=v.mp4_url;
+  video.load?.();
+  api('/api/resources/open',{module:moduleId,version:matVersion,resource:v.id}).then(()=>{
+   if(state.user?.id!==userId||state.module?.id!==moduleId)return;
+   state.module.opened[v.id]=new Date().toISOString();
+   const badge=document.querySelector(`[data-open-state="${v.id}"]`);if(badge)badge.textContent='Открытие записано';
+  }).catch(()=>{if(state.module?.id===moduleId&&state.user?.id===userId)notify('Запись открыта, но отметка не сохранена. Повторите после восстановления связи.',true);});
+ }));
+ go?.addEventListener('click',()=>{
+  const seq=section._vidSeq,lec=section._vidLecture;
+  const p=video.play?.();
+  if(p&&p.catch)p.catch(()=>{
+   if(section._vidSeq!==seq||section._vidLecture!==lec||video.isConnected===false)return;
+   if(status)status.textContent='Не удалось запустить запись — откройте её на YouTube по ссылке у лекции.';
+  });
+ });
+}
+function wireVideoFeedback(){
+ const section=document.querySelector('[data-suggested-player]');
+ const video=section?.querySelector('video');
+ document.querySelectorAll('[data-vcap]').forEach(b=>b.addEventListener('click',()=>{
+  const v=(state.module?.materials?.faculty_videos||[]).find(x=>x.id===b.dataset.vcap);
+  const box=b.closest('.video-feedback');
+  if(!v||!box)return;
+  if(!video||section._vidLecture!==v.id||!section._vidReady||!Number.isFinite(video.currentTime)){notify('Сначала загрузите в плеере запись этой лекции и дождитесь готовности.',true);return;}
+  box.querySelector('.vfb-time').value=formatTimecode(video.currentTime);
+  notify('Подставлено время плеера '+formatTimecode(video.currentTime)+'.');
+ }));
+ document.querySelectorAll('[data-vfb]').forEach(b=>b.addEventListener('click',()=>{
+  const v=(state.module?.materials?.faculty_videos||[]).find(x=>x.id===b.dataset.vfb);
+  const box=b.closest('.video-feedback');
+  if(!v||!box)return;
+  const tc=parseTimecode(box.querySelector('.vfb-time')?.value);
+  if(tc===null||!Number.isFinite(tc)){notify('Укажите таймкод в секундах или в формате мм:сс.',true);return;}
+  const comment=String(box.querySelector('.vfb-comment')?.value||'').trim();
+  if(!comment){notify('Напишите комментарий к замечанию.',true);return;}
+  const payload=videoFeedbackPayload(state.module.id,v,tc,comment);
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`video-feedback-${state.module.id}-${v.lecture_id||v.id}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  notify('Скачивание запрошено — передайте файл преподавателю.');
+ }));
+}
 function materialsPanel(){
  const c=state.module.materials,archives=c.groups.find(g=>g.id==='lectures');
- moduleShell(`<div class="eyebrow">01 · Изучить</div><h2>Лекция и материалы</h2><p class="muted">Начните с рекомендаций и основных источников. Дополнительные материалы раскрываются отдельно.</p><section class="faculty"><h3>Кафедральные видеозаписи</h3>${c.faculty_videos.length?`<p class="help">Ниже записи с сайта кафедры, предварительно сопоставленные по теме. Привязка преподавателем и воспроизведение ещё не подтверждены.</p><ul class="resources">${c.faculty_videos.slice(0,3).map(resourceMarkup).join('')}</ul>${c.faculty_videos.length>3?`<details class="reading-group"><summary>Ещё записей по теме: ${c.faculty_videos.length-3}</summary><ul class="resources">${c.faculty_videos.slice(3).map(resourceMarkup).join('')}</ul></details>`:''}`:'<p class="muted">Точная кафедральная запись к этому модулю пока не сопоставлена. Видеоархивы ниже доступны для дополнительной подготовки.</p>'}</section>${c.groups.filter(g=>g.id!=='lectures').map((g,i)=>`<details class="reading-group" ${i===0?'open':''}><summary>${esc(g.title)} <span>${g.items.length}</span></summary>${g.items.length?`<ul class="resources">${g.items.map(resourceMarkup).join('')}</ul>`:'<p class="muted">В исходном пакете материалы этого типа не указаны.</p>'}</details>`).join('')}<details class="reading-group"><summary>${esc(archives.title)} <span>${archives.items.length}</span></summary><p class="help">Это общие архивы и платформы; они не заменяют точную ссылку на кафедральную лекцию.</p><ul class="resources">${archives.items.map(resourceMarkup).join('')}</ul></details><p class="help">Отметка фиксирует открытие ссылки. Она не доказывает просмотр видео или изучение материала.</p><div class="actions"><button class="primary" data-panel="cases">Перейти к задачам →</button></div>`);
+ const sugg=c.faculty_videos.filter(v=>v.kind==='suggested_video'),others=c.faculty_videos.filter(v=>v.kind!=='suggested_video');
+ moduleShell(`<div class="eyebrow">01 · Изучить</div><h2>Лекция и материалы</h2><p class="muted">Начните с рекомендаций и основных источников. Дополнительные материалы раскрываются отдельно.</p>${sugg.length?`<section class="faculty suggested-lectures"><h3>Записи занятий · предварительная привязка</h3><p class="help">Записи предварительно сопоставлены с модулем; таймкоды ориентировочные. Для зачёта нужна явная привязка преподавателя на вкладке «Завершение модуля».</p><ul class="resources">${sugg.map(suggestedVideoMarkup).join('')}</ul><div class="suggested-player" data-suggested-player><video controls preload="none" playsinline hidden></video><p class="help" data-vplayer-status>Выберите запись — видео загрузится только после вашего действия.</p><p class="help warn" data-vplayer-warn hidden></p><div class="actions"><button type="button" data-vplayer-go hidden>▶ Запустить запись</button></div></div></section>`:''}<section class="faculty"><h3>Кафедральные видеозаписи</h3>${others.length?`<p class="help">Ниже записи с сайта кафедры, предварительно сопоставленные по теме. Привязка преподавателем и воспроизведение ещё не подтверждены.</p><ul class="resources">${others.slice(0,3).map(resourceMarkup).join('')}</ul>${others.length>3?`<details class="reading-group"><summary>Ещё записей по теме: ${others.length-3}</summary><ul class="resources">${others.slice(3).map(resourceMarkup).join('')}</ul></details>`:''}`:'<p class="muted">Точная кафедральная запись к этому модулю пока не сопоставлена. Видеоархивы ниже доступны для дополнительной подготовки.</p>'}</section>${c.groups.filter(g=>g.id!=='lectures').map((g,i)=>`<details class="reading-group" ${i===0?'open':''}><summary>${esc(g.title)} <span>${g.items.length}</span></summary>${g.items.length?`<ul class="resources">${g.items.map(resourceMarkup).join('')}</ul>`:'<p class="muted">В исходном пакете материалы этого типа не указаны.</p>'}</details>`).join('')}<details class="reading-group"><summary>${esc(archives.title)} <span>${archives.items.length}</span></summary><p class="help">Это общие архивы и платформы; они не заменяют точную ссылку на кафедральную лекцию.</p><ul class="resources">${archives.items.map(resourceMarkup).join('')}</ul></details><p class="help">Отметка фиксирует открытие ссылки. Она не доказывает просмотр видео или изучение материала.</p><div class="actions"><button class="primary" data-panel="cases">Перейти к задачам →</button></div>`);
  wireResources();
+ wireSuggestedPlayer();
+ wireVideoFeedback();
 }
 function toolsPanel(){
  const c=state.module.materials;
@@ -104,4 +207,5 @@ async function teacher(){
  if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
  app.insertAdjacentHTML('beforeend',`<section class="paper teacher-tests"><h2>Тестовые попытки ординаторов</h2><p class="muted">Полные попытки: результат рассчитан на сервере по всем вопросам. Итоговый зачёт модуля — на вкладке «Завершение модуля».</p>${rows.length?rows.map(q=>`<details class="reading-group"><summary>${esc(q.student==='student-a'?'Ординатор А':'Ординатор Б')} · ${esc(q.module)} · ${q.submitted_at?(q.passed?'зачтён':'не зачтён'):'в процессе'}${q.submitted_at?' · '+q.score+'/'+q.total:''}</summary>${q.submitted_at?quizResult(q):`<p>${Object.keys(q.answers).length} из ${q.total} ответов сохранено.</p>`}</details>`).join(''):'<p class="muted">Попыток пока нет. Они появятся после запуска теста ординатором.</p>'}</section>`);
 }
+if(typeof module!=='undefined'&&module.exports){module.exports={formatTimecode,parseTimecode,videoFeedbackPayload,suggestedVideoMarkup,wireSuggestedPlayer,wireVideoFeedback};}
 start();
