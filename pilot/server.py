@@ -18,6 +18,7 @@ from pilot.materials import Materials, ReadingStore
 from pilot.logbook import Logbook
 from pilot.practice import PREFIX, ApiError, Practice
 from pilot.completion import Completion
+from pilot.session_store import MemorySessions
 
 ROOT = Path(__file__).resolve().parents[1]
 USERS = {
@@ -31,9 +32,32 @@ def clinical(rows):
     return [r for r in rows if not r['case'].startswith(PREFIX)]
 
 
+def make_password_hash(password, iterations=200_000):
+    """pbkdf2-хэш для файла аккаунтов hosted-режима (генерация офлайн)."""
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode(), iterations).hex()
+    return f'pbkdf2${iterations}${salt}${digest}'
+
+
+def verify_password(account, password):
+    stored = account.get('password_hash')
+    if isinstance(stored, str) and stored.startswith('pbkdf2$'):
+        try:
+            _, iters, salt, expect = stored.split('$', 3)
+            digest = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'),
+                                         salt.encode(), int(iters)).hex()
+            return hmac.compare_digest(digest, expect)
+        except (ValueError, TypeError):
+            return False
+    return hmac.compare_digest(account.get('password', ''), password)
+
+
 class Pilot:
-    def __init__(self, db_path, data_path=ROOT / 'data/orp-data.json'):
+    def __init__(self, db_path, data_path=ROOT / 'data/orp-data.json', users=None, sessions=None, auth=None,
+                 hosted=False):
         self.store = Store(str(db_path))
+        self.auth = auth
+        self.hosted = hosted
         data = json.loads(Path(data_path).read_text())
         self.quiz = QuizStore(str(db_path))
         self.reading = ReadingStore(db_path)
@@ -43,32 +67,38 @@ class Pilot:
         self.modules = {m['module_id']: m for m in data['modules']}
         self.versions = {k: hashlib.sha256(json.dumps(m['clinical_cases'], ensure_ascii=False,
                         sort_keys=True).encode()).hexdigest()[:16] for k, m in self.modules.items()}
+        self.users = auth.users if auth else (users or USERS)
         # All demo modules are assigned to the demo teacher. This is NOT a real roster.
         self.assignments = {'teacher': set(self.modules)}
         self.logbook = Logbook(db_path)
         self.practice = Practice(self, data)
-        self.completion = Completion(self, USERS)
-        self.sessions = {}
+        self.completion = Completion(self, self.users)
+        self.sessions = sessions or MemorySessions()
         self.lock = threading.Lock()
 
-    def login(self, username, password):
-        account = USERS.get(username) if isinstance(username, str) else None
-        if not account or not isinstance(password, str) or not hmac.compare_digest(account['password'], password):
-            raise ApiError(401, 'Неверный демонстрационный логин или пароль.')
-        token = secrets.token_urlsafe(32)
-        with self.lock:
-            now = time.time()
-            self.sessions = {k: v for k, v in self.sessions.items() if v[1] > now}
-            self.sessions[token] = (username, now + 8 * 3600)
-        return token
+    def login(self, username, password, client_ip='127.0.0.1'):
+        if self.auth:
+            return self.auth.login(username, password, client_ip, self.sessions)
+        account = self.users.get(username) if isinstance(username, str) else None
+        if not account or not isinstance(password, str) or not verify_password(account, password):
+            raise ApiError(401, 'Неверный логин или пароль.')
+        return self.sessions.create(username)
 
     def user(self, token):
-        with self.lock:
-            record = self.sessions.get(token)
-        if not record or record[1] <= time.time():
-            raise ApiError(401, 'Войдите в демонстрационную учётную запись.')
-        username = record[0]
-        return {'id': username, 'name': USERS[username]['name'], 'role': USERS[username]['role']}
+        username = self.sessions.user(token)
+        account = self.users.get(username) if username else None
+        if not account:
+            raise ApiError(401, 'Войдите в учётную запись.')
+        if self.auth:
+            if not hasattr(self.sessions, 'session_auth_version'):
+                raise ApiError(401, 'Войдите в учётную запись.')
+            ver = self.sessions.session_auth_version(token)
+            if ver is None:
+                raise ApiError(401, 'Войдите в учётную запись.')
+            expected = account.get('auth_version', 1)
+            if ver != expected:
+                raise ApiError(401, 'Войдите в учётную запись.')
+        return {'id': username, 'name': account['name'], 'role': account['role']}
 
     def module(self, module_id):
         if module_id not in self.modules:
@@ -125,7 +155,27 @@ class Pilot:
             self.teacher(user, row['module'])
         elif row['student'] != user['id']:
             raise ApiError(404, 'Ответ не найден.')
+        row['student_name'] = self.users.get(row['student'], {}).get('name', row['student'])
         return row
+
+
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; "
+       "img-src 'self'; media-src 'self' https://video.rosoncoweb.ru; "
+       "frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+
+
+def base_headers(content_type, length):
+    return [('Content-Type', content_type),
+            ('Content-Length', str(length)),
+            ('Cache-Control', 'no-store'),
+            ('X-Content-Type-Options', 'nosniff'),
+            ('Referrer-Policy', 'no-referrer'),
+            ('Content-Security-Policy', CSP)]
+
+
+def session_cookie_header(name, value, secure=False):
+    header = f'{name}={value}; HttpOnly; SameSite=Strict; Path=/; Max-Age={28800 if value else 0}'
+    return header + '; Secure' if secure else header
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -150,16 +200,15 @@ class Handler(BaseHTTPRequestHandler):
     def respond(self, status, value, content_type='application/json; charset=utf-8', cookie=None):
         data = json.dumps(value, ensure_ascii=False).encode() if content_type.startswith('application/json') else value
         self.send_response(status)
-        self.send_header('Content-Type', content_type)
-        self.send_header('Content-Length', str(len(data)))
-        self.send_header('Cache-Control', 'no-store')
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; media-src 'self' https://video.rosoncoweb.ru; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        for key, val in base_headers(content_type, len(data)):
+            self.send_header(key, val)
         if cookie is not None:
-            self.send_header('Set-Cookie', f'{self.cookie_name}={cookie}; HttpOnly; SameSite=Strict; Path=/; Max-Age={28800 if cookie else 0}')
+            self.send_header('Set-Cookie', session_cookie_header(self.cookie_name, cookie))
         self.end_headers()
         self.wfile.write(data)
+
+    def client_ip(self):
+        return self.client_address[0]
 
     def guard(self, mutation=False):
         port = self.server.server_port
@@ -192,162 +241,195 @@ class Handler(BaseHTTPRequestHandler):
         self.run(True)
 
     def run(self, mutation):
-        try:
-            self.guard(mutation)
-            path = urlsplit(self.path).path
-            if not mutation:
-                assets = {'/': ('index.html', 'text/html; charset=utf-8'),
-                          '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
-                          '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
-                          '/practice.js': ('practice.js', 'text/javascript; charset=utf-8'),
-                          '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'),
-                          '/style.css': ('style.css', 'text/css; charset=utf-8')}
-                if path in assets:
-                    name, mime = assets[path]
-                    return self.respond(200, (ROOT / 'pilot/web' / name).read_bytes(), mime)
-            body = self.body() if mutation else {}
-            if mutation and path == '/api/login':
-                token = self.pilot.login(body.get('username'), body.get('password'))
-                old = self.token()
-                with self.pilot.lock:
-                    self.pilot.sessions.pop(old, None)
-                return self.respond(200, self.pilot.user(token), cookie=token)
-            user = self.pilot.user(self.token())
-            if not mutation and path.startswith('/documents/'):
-                module_id = path.removeprefix('/documents/')
-                self.pilot.teacher(user, module_id)
-                m = self.pilot.module(module_id)
-                docx = m.get('docx', '')
-                if not docx or Path(docx).name != docx:
-                    raise ApiError(404, 'Документ не найден.')
-                return self.respond(200, (ROOT / 'modules' / docx).read_bytes(),
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-            if mutation and path == '/api/logout':
-                with self.pilot.lock:
-                    self.pilot.sessions.pop(self.token(), None)
-                return self.respond(200, {'ok': True}, cookie='')
-            if not mutation and path == '/api/session':
-                return self.respond(200, user)
-            if not mutation and path == '/api/modules':
-                return self.respond(200, [{'id': k, 'title': m['module_title'], 'year': m['pedagogical_year']}
-                                         for k, m in self.pilot.modules.items()])
-            if not mutation and path.startswith('/api/modules/'):
-                return self.respond(200, self.pilot.module_view(user, path.removeprefix('/api/modules/')))
-            if not mutation and path == '/api/queue':
-                if user['role'] != 'teacher':
-                    raise ApiError(403, 'Очередь доступна преподавателю.')
-                rows = [r for r in clinical(self.pilot.store.submissions()) if
-                        r['module'] in self.pilot.assignments.get(user['id'], set())]
-                return self.respond(200, rows)
-            practice = self.pilot.practice
-            if not mutation and path == '/api/practice/queue':
-                return self.respond(200, practice.queue(user))
-            if not mutation and path.startswith('/api/practice/submissions/'):
-                return self.respond(200, practice.submission(user, int(path.rsplit('/', 1)[1])))
-            if not mutation and path.startswith('/api/practice/'):
-                return self.respond(200, practice.view(user, path.removeprefix('/api/practice/')))
-            routes = {'/api/practice/drafts': practice.draft, '/api/practice/answers': practice.answer,
-                      '/api/practice/reviews': practice.review}
-            if mutation and path in routes:
-                return self.respond(200, routes[path](user, body))
-            if not mutation and path == '/api/test-results':
-                if user['role'] != 'teacher':
-                    raise ApiError(403, 'Результаты группы доступны преподавателю.')
-                result = []
-                for student in USERS:
-                    if USERS[student]['role'] == 'student':
-                        for module_id in self.pilot.assignments.get(user['id'], set()):
-                            result.extend(self.pilot.quiz.history(student, module_id))
-                return self.respond(200, sorted(result, key=lambda r: r['created_at'], reverse=True))
-            if not mutation and path.startswith('/api/quizzes/'):
-                row = self.pilot.quiz.get(user['id'], path.rsplit('/', 1)[1])
-                if row is None:
-                    raise ApiError(404, 'Попытка не найдена.')
-                return self.respond(200, row)
-            if mutation and path == '/api/resources/open':
-                self.pilot.student(user)
-                module_id, resource = body.get('module'), body.get('resource')
-                if not isinstance(module_id, str) or not isinstance(resource, str):
-                    raise ApiError(400, 'Укажите материал.')
-                materials = self.pilot.materials.view(self.pilot.module(module_id))
-                if body.get('version') != materials['version']:
-                    raise ApiError(409, 'Список материалов изменился. Обновите страницу.')
-                items = [r for g in materials['groups'] for r in g['items']] + materials['faculty_videos']
-                found = next((r for r in items if r['id'] == resource and r['url']), None)
-                if found is None:
-                    raise ApiError(404, 'Ссылка на материал не найдена.')
-                self.pilot.reading.mark(user['id'], module_id, materials['version'], resource)
-                return self.respond(200, {'saved': True, 'url': found['url']})
-            if mutation and path == '/api/quizzes/start':
-                self.pilot.student(user)
-                module_id = body.get('module')
-                if not isinstance(module_id, str):
-                    raise ApiError(400, 'Укажите модуль.')
-                self.pilot.module(module_id)
-                bank = [q for q in self.pilot.questions if q['module'] == module_id]
-                return self.respond(200, self.pilot.quiz.start(user['id'], module_id, bank, body.get('key')))
-            if mutation and path in ('/api/quizzes/save', '/api/quizzes/submit'):
-                self.pilot.student(user)
-                attempt_id = body.get('id')
-                if not isinstance(attempt_id, str) or self.pilot.quiz.get(user['id'], attempt_id) is None:
-                    raise ApiError(404, 'Попытка не найдена.')
-                method = self.pilot.quiz.submit if path.endswith('/submit') else self.pilot.quiz.save
-                return self.respond(200, method(user['id'], attempt_id, body.get('answers')))
-            if not mutation and path.startswith('/api/submissions/'):
-                sid = int(path.rsplit('/', 1)[1])
-                return self.respond(200, self.pilot.submission_view(user, sid))
-            completion = self.pilot.completion
-            if not mutation and path == '/api/completion/queue':
-                return self.respond(200, completion.queue(user))
-            if not mutation and path.startswith('/api/completion/students/'):
-                rest = path.removeprefix('/api/completion/students/')
-                student_id, module_id = rest.split('/', 1)
-                return self.respond(200, completion.get_student(user, student_id, module_id))
-            if not mutation and path == '/api/completion/lectures':
-                return self.respond(200, completion.lecture_overview(user))
-            if not mutation and path.startswith('/api/completion/lecture/'):
-                return self.respond(200, completion.lecture_view(user, path.removeprefix('/api/completion/lecture/')))
-            if not mutation and path.startswith('/api/completion/'):
-                module_id = path.removeprefix('/api/completion/')
-                if module_id in ('queue', 'students', 'lecture', 'lectures', 'submit', 'review'):
-                    raise ApiError(404, 'Страница не найдена.')
-                return self.respond(200, completion.get_own(user, module_id))
-            if mutation and path == '/api/completion/lecture':
-                return self.respond(200, completion.lecture_bind(user, body))
-            if mutation and path == '/api/completion/submit':
-                return self.respond(200, completion.submit(user, body))
-            if mutation and path == '/api/completion/review':
-                return self.respond(200, completion.review(user, body))
-            if mutation and path in ('/api/answers', '/api/drafts'):
-                self.pilot.student(user)
-                module, case, version = (body.get(k) for k in ('module', 'case', 'version'))
-                if not all(isinstance(v, str) for v in (module, case, version)):
-                    raise ApiError(400, 'Укажите модуль, задачу и версию.')
-                self.pilot.case(module, case, version)
-                if path == '/api/drafts':
-                    self.pilot.store.save_draft(user['id'], module, case, version, body.get('text'))
-                    return self.respond(200, {'saved': True})
-                row = self.pilot.store.submit(user['id'], module, case, version, body.get('answer'), body.get('key'))
-                self.pilot.store.save_draft(user['id'], module, case, version, '')
-                return self.respond(200, row)
-            if mutation and path == '/api/reviews':
-                sid = body.get('submission_id')
-                if type(sid) is not int:
-                    raise ApiError(400, 'Неверный номер ответа.')
-                row = self.pilot.submission_view(user, sid)
-                self.pilot.teacher(user, row['module'])
-                if row['version'] != self.pilot.versions[row['module']]:
-                    raise ApiError(409, 'Задание изменилось после отправки. Сначала нужна сверка исходной редакции.')
-                return self.respond(200, self.pilot.store.review(user['id'], sid, body.get('decision'),
-                                    body.get('comment'), body.get('key')))
-            raise ApiError(404, 'Страница не найдена.')
-        except ApiError as error:
-            self.respond(error.status, {'error': error.message})
-        except (ValueError, TypeError) as error:
-            self.respond(400, {'error': str(error) or 'Проверьте заполнение полей.'})
-        except Exception:
-            # No answer text, passwords, or SQL in browser/logs.
-            self.respond(500, {'error': 'Не удалось подтвердить сохранение. Сохраните текст и повторите отправку.'})
+        serve_request(self, mutation)
+
+
+def serve_request(req, mutation):
+    """Общая маршрутизация для BaseHTTPRequestHandler (локально) и WSGI-запроса.
+
+    req должен давать: .pilot, .path, .headers, .body(), .token(), .guard(),
+    .respond(), .cookie_name. Поведение одинаковое на обоих транспортах."""
+    try:
+        req.guard(mutation)
+        path = urlsplit(req.path).path
+        if not mutation:
+            assets = {'/': ('index.html', 'text/html; charset=utf-8'),
+                      '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
+                      '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
+                      '/practice.js': ('practice.js', 'text/javascript; charset=utf-8'),
+                      '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'),
+                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
+            if path in assets:
+                name, mime = assets[path]
+                return req.respond(200, (ROOT / 'pilot/web' / name).read_bytes(), mime)
+        body = req.body() if mutation else {}
+        if not isinstance(body, dict):
+            raise ApiError(400, 'Ожидается объект JSON.')
+        client_ip = req.client_ip() if hasattr(req, 'client_ip') else '127.0.0.1'
+        if not mutation and path == '/api/auth/config':
+            hosted = getattr(req.pilot, 'hosted', False)
+            if req.pilot.auth:
+                return req.respond(200, req.pilot.auth.config())
+            return req.respond(200, {'enabled': False, 'registration': False, 'hosted': hosted})
+        auth_paths = {
+            '/api/auth/register': 'register',
+            '/api/auth/forgot': 'forgot',
+            '/api/auth/verify': 'verify',
+            '/api/auth/reset': 'reset',
+        }
+        if mutation and path in auth_paths:
+            if not req.pilot.auth:
+                raise ApiError(404, 'Страница не найдена.')
+            auth = req.pilot.auth
+            if path == '/api/auth/register':
+                return req.respond(200, auth.register(body, client_ip))
+            if path == '/api/auth/forgot':
+                return req.respond(200, auth.forgot(body, client_ip))
+            if path == '/api/auth/verify':
+                return req.respond(200, auth.verify(body, client_ip))
+            if path == '/api/auth/reset':
+                return req.respond(200, auth.reset(body, client_ip, req.pilot.sessions))
+        if mutation and path == '/api/login':
+            token = req.pilot.login(body.get('username'), body.get('password'), client_ip)
+            req.pilot.sessions.destroy(req.token())
+            return req.respond(200, req.pilot.user(token), cookie=token)
+        user = req.pilot.user(req.token())
+        if not mutation and path.startswith('/documents/'):
+            module_id = path.removeprefix('/documents/')
+            req.pilot.teacher(user, module_id)
+            m = req.pilot.module(module_id)
+            docx = m.get('docx', '')
+            if not docx or Path(docx).name != docx:
+                raise ApiError(404, 'Документ не найден.')
+            return req.respond(200, (ROOT / 'modules' / docx).read_bytes(),
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        if mutation and path == '/api/logout':
+            req.pilot.sessions.destroy(req.token())
+            return req.respond(200, {'ok': True}, cookie='')
+        if not mutation and path == '/api/session':
+            return req.respond(200, user)
+        if not mutation and path == '/api/modules':
+            return req.respond(200, [{'id': k, 'title': m['module_title'], 'year': m['pedagogical_year']}
+                                     for k, m in req.pilot.modules.items()])
+        if not mutation and path.startswith('/api/modules/'):
+            return req.respond(200, req.pilot.module_view(user, path.removeprefix('/api/modules/')))
+        if not mutation and path == '/api/queue':
+            if user['role'] != 'teacher':
+                raise ApiError(403, 'Очередь доступна преподавателю.')
+            rows = [r for r in clinical(req.pilot.store.submissions()) if
+                    r['module'] in req.pilot.assignments.get(user['id'], set())]
+            for row in rows:
+                row['student_name'] = req.pilot.users.get(row['student'], {}).get('name', row['student'])
+            return req.respond(200, rows)
+        practice = req.pilot.practice
+        if not mutation and path == '/api/practice/queue':
+            return req.respond(200, practice.queue(user))
+        if not mutation and path.startswith('/api/practice/submissions/'):
+            return req.respond(200, practice.submission(user, int(path.rsplit('/', 1)[1])))
+        if not mutation and path.startswith('/api/practice/'):
+            return req.respond(200, practice.view(user, path.removeprefix('/api/practice/')))
+        routes = {'/api/practice/drafts': practice.draft, '/api/practice/answers': practice.answer,
+                  '/api/practice/reviews': practice.review}
+        if mutation and path in routes:
+            return req.respond(200, routes[path](user, body))
+        if not mutation and path == '/api/test-results':
+            if user['role'] != 'teacher':
+                raise ApiError(403, 'Результаты группы доступны преподавателю.')
+            result = []
+            for student in req.pilot.users:
+                if req.pilot.users[student]['role'] == 'student':
+                    for module_id in req.pilot.assignments.get(user['id'], set()):
+                        result.extend(req.pilot.quiz.history(student, module_id))
+            return req.respond(200, sorted(result, key=lambda r: r['created_at'], reverse=True))
+        if not mutation and path.startswith('/api/quizzes/'):
+            row = req.pilot.quiz.get(user['id'], path.rsplit('/', 1)[1])
+            if row is None:
+                raise ApiError(404, 'Попытка не найдена.')
+            return req.respond(200, row)
+        if mutation and path == '/api/resources/open':
+            req.pilot.student(user)
+            module_id, resource = body.get('module'), body.get('resource')
+            if not isinstance(module_id, str) or not isinstance(resource, str):
+                raise ApiError(400, 'Укажите материал.')
+            materials = req.pilot.materials.view(req.pilot.module(module_id))
+            if body.get('version') != materials['version']:
+                raise ApiError(409, 'Список материалов изменился. Обновите страницу.')
+            items = [r for g in materials['groups'] for r in g['items']] + materials['faculty_videos']
+            found = next((r for r in items if r['id'] == resource and r['url']), None)
+            if found is None:
+                raise ApiError(404, 'Ссылка на материал не найдена.')
+            req.pilot.reading.mark(user['id'], module_id, materials['version'], resource)
+            return req.respond(200, {'saved': True, 'url': found['url']})
+        if mutation and path == '/api/quizzes/start':
+            req.pilot.student(user)
+            module_id = body.get('module')
+            if not isinstance(module_id, str):
+                raise ApiError(400, 'Укажите модуль.')
+            req.pilot.module(module_id)
+            bank = [q for q in req.pilot.questions if q['module'] == module_id]
+            return req.respond(200, req.pilot.quiz.start(user['id'], module_id, bank, body.get('key')))
+        if mutation and path in ('/api/quizzes/save', '/api/quizzes/submit'):
+            req.pilot.student(user)
+            attempt_id = body.get('id')
+            if not isinstance(attempt_id, str) or req.pilot.quiz.get(user['id'], attempt_id) is None:
+                raise ApiError(404, 'Попытка не найдена.')
+            method = req.pilot.quiz.submit if path.endswith('/submit') else req.pilot.quiz.save
+            return req.respond(200, method(user['id'], attempt_id, body.get('answers')))
+        if not mutation and path.startswith('/api/submissions/'):
+            sid = int(path.rsplit('/', 1)[1])
+            return req.respond(200, req.pilot.submission_view(user, sid))
+        completion = req.pilot.completion
+        if not mutation and path == '/api/completion/queue':
+            return req.respond(200, completion.queue(user))
+        if not mutation and path.startswith('/api/completion/students/'):
+            rest = path.removeprefix('/api/completion/students/')
+            student_id, module_id = rest.split('/', 1)
+            return req.respond(200, completion.get_student(user, student_id, module_id))
+        if not mutation and path == '/api/completion/lectures':
+            return req.respond(200, completion.lecture_overview(user))
+        if not mutation and path.startswith('/api/completion/lecture/'):
+            return req.respond(200, completion.lecture_view(user, path.removeprefix('/api/completion/lecture/')))
+        if not mutation and path.startswith('/api/completion/'):
+            module_id = path.removeprefix('/api/completion/')
+            if module_id in ('queue', 'students', 'lecture', 'lectures', 'submit', 'review'):
+                raise ApiError(404, 'Страница не найдена.')
+            return req.respond(200, completion.get_own(user, module_id))
+        if mutation and path == '/api/completion/lecture':
+            return req.respond(200, completion.lecture_bind(user, body))
+        if mutation and path == '/api/completion/submit':
+            return req.respond(200, completion.submit(user, body))
+        if mutation and path == '/api/completion/review':
+            return req.respond(200, completion.review(user, body))
+        if mutation and path in ('/api/answers', '/api/drafts'):
+            req.pilot.student(user)
+            module, case, version = (body.get(k) for k in ('module', 'case', 'version'))
+            if not all(isinstance(v, str) for v in (module, case, version)):
+                raise ApiError(400, 'Укажите модуль, задачу и версию.')
+            req.pilot.case(module, case, version)
+            if path == '/api/drafts':
+                req.pilot.store.save_draft(user['id'], module, case, version, body.get('text'))
+                return req.respond(200, {'saved': True})
+            row = req.pilot.store.submit(user['id'], module, case, version, body.get('answer'), body.get('key'))
+            req.pilot.store.save_draft(user['id'], module, case, version, '')
+            return req.respond(200, row)
+        if mutation and path == '/api/reviews':
+            sid = body.get('submission_id')
+            if type(sid) is not int:
+                raise ApiError(400, 'Неверный номер ответа.')
+            row = req.pilot.submission_view(user, sid)
+            req.pilot.teacher(user, row['module'])
+            if row['version'] != req.pilot.versions[row['module']]:
+                raise ApiError(409, 'Задание изменилось после отправки. Сначала нужна сверка исходной редакции.')
+            return req.respond(200, req.pilot.store.review(user['id'], sid, body.get('decision'),
+                                body.get('comment'), body.get('key')))
+        raise ApiError(404, 'Страница не найдена.')
+    except ApiError as error:
+        req.respond(error.status, {'error': error.message})
+    except (ValueError, TypeError) as error:
+        req.respond(400, {'error': str(error) or 'Проверьте заполнение полей.'})
+    except Exception:
+        # No answer text, passwords, or SQL in browser/logs.
+        req.respond(500, {'error': 'Не удалось подтвердить сохранение. Сохраните текст и повторите отправку.'})
 
     def log_message(self, fmt, *args):
         pass

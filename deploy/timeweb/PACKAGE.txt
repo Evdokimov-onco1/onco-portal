@@ -1,0 +1,44 @@
+# Офлайн-пакет для staging на Timeweb — явный allowlist загрузки.
+# Загружать ТОЛЬКО перечисленное; всё остальное (тесты, launcher, квитанции,
+# логи, локальные БД, документы с приватными путями) на хостинг не уходит.
+
+# -> releases/<release-id>/app/  (неизменяемый код, вне public_html;
+#    вход public_html/app.py выбирает релиз)
+pilot/__init__.py            # если есть; namespace-пакет работает и без него
+pilot/server.py
+pilot/wsgi.py
+pilot/session_store.py
+pilot/auth.py
+pilot/mailer.py
+pilot/store.py
+pilot/quiz.py
+pilot/materials.py
+pilot/logbook.py
+pilot/practice.py
+pilot/completion.py
+pilot/web/index.html
+pilot/web/app.js
+pilot/web/learning.js
+pilot/web/practice.js
+pilot/web/completion.js
+pilot/web/style.css
+data/orp-data.json
+data/video-suggestions.json
+docs/audit-2026-10-10/FACULTY_VIDEO_CATALOGUE.csv   # нужен Materials
+modules/                                          # docx для /documents/
+
+# -> веб-каталог staging (единственное публичное место)
+deploy/timeweb/app/app.py        # заполнить APP_ROOT и PRIVATE_DIR
+deploy/timeweb/app/.htaccess
+
+# -> корень staging (копируется установщиком, откат на предыдущий релиз)
+deploy/timeweb/rollback_staging.py
+
+# -> ~/onco-pilot-private/  (700; файлы 600)
+wsgi-config.json      # из deploy/timeweb/app/wsgi-config.example.json
+users.json            # выход deploy/timeweb/make_users.py — локально, НЕ из репозитория
+# pilot.sqlite3 создаётся приложением при первом запуске; НЕ копировать
+# локальную/историческую БД на хостинг. Текущие базы уже содержат новые регистрации.
+
+# Диагностика — отдельно, в другом каталоге/на раннем этапе:
+deploy/timeweb/wsgi.py + deploy/timeweb/.htaccess  # только версии Python/SQLite

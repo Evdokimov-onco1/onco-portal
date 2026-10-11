@@ -1,0 +1,9 @@
+# Staging-проверка mod_wsgi на Timeweb shared (по официальной доке Django:
+# https://timeweb.com/ru/docs/virtualnyj-hosting/prilozheniya-i-frejmvorki/django/).
+# Класть ТОЛЬКО в изолированный staging-каталог, НЕ в корень действующего сайта:
+# правила переписывают все нефайловые запросы на wsgi.py.
+Options +ExecCGI
+AddHandler wsgi-script .py
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ /wsgi.py/$1 [QSA,PT]
