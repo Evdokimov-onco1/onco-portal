@@ -57,6 +57,7 @@ class Pilot:
                  hosted=False):
         self.store = Store(str(db_path))
         self.auth = auth
+        self.admin = None
         self.hosted = hosted
         data = json.loads(Path(data_path).read_text())
         self.quiz = QuizStore(str(db_path))
@@ -98,7 +99,12 @@ class Pilot:
             expected = account.get('auth_version', 1)
             if ver != expected:
                 raise ApiError(401, 'Войдите в учётную запись.')
-        return {'id': username, 'name': account['name'], 'role': account['role']}
+        if self.admin and not self.admin.enabled(username):
+            raise ApiError(401, 'Доступ к аккаунту отключён. Обратитесь к администратору.')
+        result = {'id': username, 'name': account['name'], 'role': account['role']}
+        if self.admin:
+            result['is_admin'] = self.admin.is_admin(username)
+        return result
 
     def module(self, module_id):
         if module_id not in self.modules:
@@ -258,6 +264,7 @@ def serve_request(req, mutation):
                       '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
                       '/practice.js': ('practice.js', 'text/javascript; charset=utf-8'),
                       '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'),
+                      '/admin.js': ('admin.js', 'text/javascript; charset=utf-8'),
                       '/style.css': ('style.css', 'text/css; charset=utf-8')}
             if path in assets:
                 name, mime = assets[path]
@@ -294,6 +301,15 @@ def serve_request(req, mutation):
             req.pilot.sessions.destroy(req.token())
             return req.respond(200, req.pilot.user(token), cookie=token)
         user = req.pilot.user(req.token())
+        if path.startswith('/api/admin/'):
+            if not req.pilot.admin:
+                raise ApiError(403, 'Администрирование недоступно.')
+            req.pilot.admin.require(user)
+            if not mutation and path == '/api/admin/overview':
+                return req.respond(200, req.pilot.admin.overview(user, req.pilot.assignments, req.pilot.modules))
+            if mutation and path == '/api/admin/users':
+                return req.respond(200, req.pilot.admin.update(user, body, req.pilot.modules))
+            raise ApiError(404, 'Страница не найдена.')
         if not mutation and path.startswith('/documents/'):
             module_id = path.removeprefix('/documents/')
             req.pilot.teacher(user, module_id)

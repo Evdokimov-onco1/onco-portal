@@ -39,7 +39,8 @@ function parseAuthFragment(){
 }
 function header(){
  const tag=state.authConfig.enabled?'': ' · демо';
- identity.innerHTML=state.user?`<span>${esc(state.user.name)}${tag}</span><button id="logout">Выйти</button>`:'';
+ identity.innerHTML=state.user?`<span>${esc(state.user.name)}${tag}</span>${state.user.is_admin?'<button id="openAdmin">Администрирование</button>':''}<button id="logout">Выйти</button>`:'';
+ document.querySelector('#openAdmin')?.addEventListener('click',e=>{if(safeLeave())action(e.target,adminHome);});
  document.querySelector('#logout')?.addEventListener('click',e=>{if(!safeLeave())return;action(e.target,async()=>{nextCompletionLoadId();const was=state.user;await api('/api/logout',{});invalidatePracticeLoads();invalidateCompletionLoads();if(state.user!==was)return;state.user=null;state.teacherTab=null;state.teacherCompletionModule=null;state.teacherCompletionReview=null;state.dirty.clear();state.edits={};state.pending={};login();});});
 }
 function showTokenPasswordForm(kind,token){
@@ -73,7 +74,7 @@ function forgotForm(){
  document.querySelector('#toLogin').addEventListener('click',()=>{state.authView='login';login();});
  document.querySelector('#forgotForm').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const data=await api('/api/auth/forgot',{email:document.querySelector('#fgEmail').value.trim()});notify(data.message||'Проверьте почту.');state.authView='login';login();});});
 }
-async function home(){header();if(state.user.role==='teacher'){invalidateCompletionLoads();await teacher();}else await loadModule(new URLSearchParams(location.search).get('module')||'M01');}
+async function home(){header();if(state.user.is_admin){await adminHome();return;}if(state.user.role==='teacher'){invalidateCompletionLoads();await teacher();}else await loadModule(new URLSearchParams(location.search).get('module')||'M01');}
 async function loadModule(id){invalidatePracticeLoads();invalidateCompletionLoads();state.module=await api('/api/modules/'+encodeURIComponent(id));state.caseId='C1';state.edits={};state.dirty.clear();state.quiz=null;state.quizStartKey=null;state.sel={};student();}
 function answerHistory(attempts){return attempts.map(a=>`<article class="attempt"><div class="status-row">${badge(a)}<span class="muted">Ответ №${a.id} · ${stamp(a.created_at)}</span></div><div class="text">${esc(a.answer)}</div>${a.reviews.map(r=>`<div class="review"><strong>${r.decision==='accepted'?'Ответ принят':'Возвращён на доработку'}</strong> · ${stamp(r.created_at)}<div class="text">${esc(r.comment||'Без комментария')}</div></div>`).join('')}</article>`).join('');}
 function studentCases(){
