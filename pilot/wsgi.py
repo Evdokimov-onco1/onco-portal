@@ -28,6 +28,7 @@ from pilot.server import (ROOT, Pilot, base_headers, serve_request,
                           session_cookie_header)
 from pilot.session_store import SqliteSessions
 from pilot.auth import AccountStore, AuthService
+from pilot.admin import AdminStore, AssignmentView
 from pilot.mailer import mailer_from_env
 
 COOKIE_NAME = 'onco_pilot'
@@ -204,6 +205,9 @@ def make_app(env=None):
                   users=users, sessions=SqliteSessions(sessions_db), auth=auth, hosted=True)
     pilot.assignments = build_assignments(assignment_users,
                                           pilot.modules)
+    if auth:
+        pilot.admin = AdminStore(auth.store)
+        pilot.assignments = AssignmentView(pilot.admin, pilot.assignments)
     return App(pilot, host)
 
 

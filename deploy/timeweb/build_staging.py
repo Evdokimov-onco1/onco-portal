@@ -35,8 +35,8 @@ ROOT = find_root()
 APP_FILES = [
     'pilot/server.py', 'pilot/wsgi.py', 'pilot/session_store.py', 'pilot/store.py',
     'pilot/quiz.py', 'pilot/materials.py', 'pilot/logbook.py', 'pilot/practice.py',
-    'pilot/completion.py', 'pilot/auth.py', 'pilot/mailer.py',
-    'pilot/web/index.html', 'pilot/web/app.js', 'pilot/web/learning.js',
+    'pilot/completion.py', 'pilot/admin.py', 'pilot/auth.py', 'pilot/mailer.py',
+    'pilot/web/index.html', 'pilot/web/admin.js', 'pilot/web/app.js', 'pilot/web/learning.js',
     'pilot/web/practice.js', 'pilot/web/completion.js', 'pilot/web/style.css',
     'data/orp-data.json', 'data/video-suggestions.json',
     'docs/audit-2026-10-10/FACULTY_VIDEO_CATALOGUE.csv',
