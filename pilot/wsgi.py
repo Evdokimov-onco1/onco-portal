@@ -201,7 +201,8 @@ def make_app(env=None):
         auth = AuthService(store, mailer_from_env(env), public_url, registration=reg, hosted=True)
         users = auth.users
     pilot = Pilot(db, data_path=env.get('PILOT_DATA', ROOT / 'data/orp-data.json'),
-                  users=users, sessions=SqliteSessions(sessions_db), auth=auth, hosted=True)
+                  users=users, sessions=SqliteSessions(sessions_db), auth=auth, hosted=True,
+                  sequential=str(env.get('PILOT_SEQUENTIAL_MODULES', '0')).lower() in ('1', 'true', 'yes'))
     pilot.assignments = build_assignments(assignment_users,
                                           pilot.modules)
     return App(pilot, host)

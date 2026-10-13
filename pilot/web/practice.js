@@ -69,7 +69,7 @@ function pAttemptMarkup(r){
  const badge=e?`<span class="badge ${esc(e.decision)}">${esc(pDecLabel[e.decision]||e.decision)}</span>`:'<span class="badge">На проверке</span>';
  return `<article class="attempt"><div class="status-row">${badge}<span class="muted">Ответ №${r.id} · ${stamp(r.created_at)}</span></div><div class="text">${esc(r.answer)}</div>${(r.logbook||[]).map(pEventMarkup).join('')||'<p class="help">Отметки преподавателя пока нет.</p>'}</article>`;
 }
-function pDetail(a){
+function pDetail(a,inline=false){
  const stage=a.kind==='tumor_board'?`<span class="muted">Этап ${a.stage_index} из ${a.stage_total} · ${esc(a.group_id)}</span>`:'';
  if(a.locked)return `<div class="status-row"><span class="badge">${esc(pKindLabel[a.kind]||'Практика')}</span>${stage}</div><h3>${esc(a.title)}</h3><div class="locked"><strong>Этап пока закрыт.</strong> Он откроется после отправки вашего ответа на предыдущий этап; содержание заранее не показывается.</div>`;
  const attempts=a.attempts||[];
@@ -80,20 +80,20 @@ function pDetail(a){
  const standard=a.standard?`<details class="model"><summary>Эталон экзаменатора</summary><div class="text">${esc(a.standard)}</div><p class="help">Сравните со своим ответом — отметку в логбуке ставит преподаватель.</p></details>`:(a.kind==='osce'?'<div class="locked">Эталон экзаменатора и разбор откроются после отправки вашего ответа.</div>':'');
  const debrief=a.debrief?`<details class="model"><summary>Разбор после выполнения</summary><div class="text">${esc(a.debrief)}</div></details>`:'';
  const rubric=(a.rubric||[]).length?`<details class="reading-group"><summary>Критерии оценки преподавателя · ${a.rubric.length}</summary><ul class="marks-list">${a.rubric.map(r=>`<li>${esc(r.label)} — до ${r.max_score} балл.${r.critical?' · критическая ошибка':''}</li>`).join('')}</ul></details>`:'';
- return `<div class="status-row"><span class="badge">${esc(pKindLabel[a.kind]||'Практика')}</span>${stage}${pBadge(a)}</div><h3>${esc(a.title)}</h3><div class="eyebrow">Задание из учебного пакета</div>${prompts}${instr}<p class="help">${note}</p><form id="pform"><label for="panswer">${attempts.length?'Новая версия вашего ответа':'Ваш ответ'}</label><textarea id="panswer" maxlength="20000" required placeholder="Запишите собственное рассуждение до сверки с эталоном…">${esc(draft)}</textarea><div class="actions"><button id="psave" type="button">Сохранить черновик</button><button class="primary" type="submit">${attempts.length?'Отправить новую версию':'Отправить преподавателю'}</button></div><p class="help">Черновик видите только вы. Отправленный ответ неизменен; правка создаёт новую версию.</p></form>${standard}${debrief}${rubric}<details class="history" ${attempts.length?'open':''}><summary>История ответов и отметок · ${attempts.length}</summary>${attempts.length?attempts.map(pAttemptMarkup).join(''):'<p class="muted">Отправленных ответов пока нет.</p>'}</details>`;
+ return `<div class="status-row"><span class="badge">${esc(pKindLabel[a.kind]||'Практика')}</span>${stage}${pBadge(a)}</div><h3>${esc(a.title)}</h3><div class="eyebrow">Задание из учебного пакета</div>${prompts}${instr}<p class="help">${note}</p><form data-pform><label for="panswer-${esc(a.id.replace(/[^a-z0-9]/gi,'-'))}">${attempts.length?'Новая версия вашего ответа':'Ваш ответ'}</label><textarea id="panswer-${esc(a.id.replace(/[^a-z0-9]/gi,'-'))}" data-panswer maxlength="20000" required placeholder="Запишите собственное рассуждение до сверки с эталоном…">${esc(draft)}</textarea><div class="actions"><button data-psave type="button">Сохранить черновик</button><button class="primary" type="submit">${attempts.length?'Отправить новую версию':'Отправить преподавателю'}</button></div><p class="help">Черновик видите только вы. Отправленный ответ неизменен; правка создаёт новую версию.</p></form>${standard}${debrief}${rubric}<details class="history" ${attempts.length?'open':''}><summary>История ответов и отметок · ${attempts.length}</summary>${attempts.length?attempts.map(pAttemptMarkup).join(''):'<p class="muted">Отправленных ответов пока нет.</p>'}</details>`;
 }
-function wirePractice(sel){
- document.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>{
+function wirePractice(sel,scope=document){
+ if(scope===document)document.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>{
   if(b.dataset.act===state.sel[state.panel])return;
   state.sel[state.panel]=b.dataset.act;student();
  }));
- document.querySelector('#practiceRetry')?.addEventListener('click',e=>action(e.target,loadPractice));
- const form=document.querySelector('#pform');if(!form||!sel||!state.practice||state.practice.error)return;
+ if(scope===document)document.querySelector('#practiceRetry')?.addEventListener('click',e=>action(e.target,loadPractice));
+ const form=scope===document?document.querySelector('.activity-detail [data-pform]'):scope.querySelector('[data-pform]');if(!form||!sel||!state.practice||state.practice.error)return;
  const p=state.practice,a=sel;
- document.querySelector('#panswer').addEventListener('input',e=>{state.edits[a.id]=e.target.value;state.dirty.add(a.id);});
- document.querySelector('#psave').addEventListener('click',e=>action(e.target,async()=>{const text=document.querySelector('#panswer').value;await api('/api/practice/drafts',{module:p.module,activity:a.id,version:p.version,text});p.drafts[a.id]=text;state.dirty.delete(a.id);notify('Черновик сохранён. Преподавателю он не отправлен.');}));
+ form.querySelector('[data-panswer]').addEventListener('input',e=>{state.edits[a.id]=e.target.value;state.dirty.add(a.id);});
+ form.querySelector('[data-psave]').addEventListener('click',e=>action(e.target,async()=>{const text=form.querySelector('[data-panswer]').value;await api('/api/practice/drafts',{module:p.module,activity:a.id,version:p.version,text});p.drafts[a.id]=text;state.dirty.delete(a.id);notify('Черновик сохранён. Преподавателю он не отправлен.');}));
  form.addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{
-  const text=document.querySelector('#panswer').value.trim();
+  const text=form.querySelector('[data-panswer]').value.trim();
   if(!text)throw new Error('Напишите свой ответ перед отправкой.');
   const fingerprint=a.id+p.version+text;let k=state.pending[a.id];
   if(!k||k.fingerprint!==fingerprint)k=state.pending[a.id]={fingerprint,key:crypto.randomUUID()};
@@ -118,7 +118,7 @@ function practicePanel(){
  if(!p){moduleShell('<div class="eyebrow">Подготовка и оценка на семинаре</div><h2>OSCE и Tumor Board</h2><p class="muted">Загружаем логбук практики…</p>');loadPractice();return;}
  const osce=(p.activities||[]).filter(a=>a.kind==='osce');
  const tb=(p.activities||[]).filter(a=>a.kind==='tumor_board');
- const all=[...osce,...tb];
+ const all=tb;
  const sel=all.find(a=>a.id===state.sel.practice&&!a.locked)||all.find(a=>!a.locked)||all[0]||null;
  state.sel.practice=sel?sel.id:undefined;
  const tbExpected=c.tumor_board.reduce((s,b)=>s+(b.stage_count||0),0);
@@ -127,8 +127,9 @@ function practicePanel(){
   return `<h3>${title} · 0</h3>${expected?'<div class="locked">Задания привязаны к модулю, но не выгружены в логбук — это не подтверждённое исключение из программы, содержание уточняется преподавателем.</div>':`<div class="locked">${miss}</div>`}`;
  };
  const vps=`<h3>Виртуальные пациенты · ${c.virtual_patients.length}</h3>${c.virtual_patients.map(v=>`<details class="reading-group"><summary>${esc(v.id+' · '+v.title)}</summary>${listText(v.objectives)}</details>`).join('')||'<p class="muted">В исходнике не назначены.</p>'}<p class="help">Виртуальные пациенты остаются превью: выполненной письменной практикой этот просмотр не считается.</p>`;
- moduleShell(`<div class="eyebrow">Подготовка и оценка на семинаре</div><h2>OSCE и Tumor Board</h2><p><strong>OSCE пока необязателен.</strong> Изучайте станции для подготовки; письменный ответ можно отправить по желанию. OSCE не входит в обязательные условия будущего зачёта модуля.</p><p>Отправленные работы преподаватель может оценить на семинаре и отметить в логбуке.</p>${p.error?`<div class="locked">Логбук практики сейчас недоступен: ${esc(p.error)} Ответы здесь не сохранены — попробуйте позже.</div>`:''}${sec('OSCE',osce,c.osce.length,'OSCE к модулю не привязан. Нужно уточнение содержания; это не подтверждённое исключение из программы.')}${pTbCatalog(tb,state.sel.practice,sel?.kind,c.tumor_board,tbExpected)}${sel?`<div class="activity-detail">${pDetail(sel)}</div>`:''}${vps}<div class="actions"><button id="practiceRetry" type="button">Обновить отметки</button></div>`);
+ moduleShell(`<div class="eyebrow">Подготовка и оценка на семинаре</div><h2>OSCE и Tumor Board</h2><p><strong>OSCE пока необязателен.</strong> Изучайте станции для подготовки; письменный ответ можно отправить по желанию. OSCE не входит в обязательные условия будущего зачёта модуля.</p><p>Отправленные работы преподаватель может оценить на семинаре и отметить в логбуке.</p>${p.error?`<div class="locked">Логбук практики сейчас недоступен: ${esc(p.error)} Ответы здесь не сохранены — попробуйте позже.</div>`:''}${osce.length?osce.map(a=>`<details class="material-card osce-station" data-osce-answer="${esc(a.id)}"><summary>${esc(a.title)} · свободный ответ</summary>${pDetail(a,true)}</details>`).join(''):sec('OSCE',osce,c.osce.length,'OSCE к модулю не привязан. Нужно уточнение содержания; это не подтверждённое исключение из программы.')}${pTbCatalog(tb,state.sel.practice,sel?.kind,c.tumor_board,tbExpected)}${sel?`<div class="activity-detail">${pDetail(sel)}</div>`:''}${vps}<div class="actions"><button id="practiceRetry" type="button">Обновить отметки</button></div>`);
  wirePractice(sel);
+ document.querySelectorAll('[data-osce-answer]').forEach(card=>wirePractice(osce.find(a=>a.id===card.dataset.osceAnswer),card));
 }
 async function teacherPracticeQueue(){
  let rows=null,err='';
