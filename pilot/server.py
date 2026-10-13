@@ -54,10 +54,11 @@ def verify_password(account, password):
 
 class Pilot:
     def __init__(self, db_path, data_path=ROOT / 'data/orp-data.json', users=None, sessions=None, auth=None,
-                 hosted=False):
+                 hosted=False, sequential=False):
         self.store = Store(str(db_path))
         self.auth = auth
         self.hosted = hosted
+        self.sequential = sequential
         data = json.loads(Path(data_path).read_text())
         self.quiz = QuizStore(str(db_path))
         self.reading = ReadingStore(db_path)
@@ -122,7 +123,42 @@ class Pilot:
         if user['role'] != 'student':
             raise ApiError(403, 'Отправка доступна только ординатору.')
 
+    def curriculum(self, user):
+        rows = []
+        confirmed_modules = set()
+        if user['role'] == 'student':
+            con = self.completion._connect()
+            try:
+                confirmed_modules = {row[0] for row in con.execute(
+                    'SELECT DISTINCT r.module FROM completion_requests r JOIN completion_events e '
+                    'ON e.request_id=r.id WHERE r.student=? AND e.decision=?', (user['id'], 'confirmed'))}
+            finally:
+                con.close()
+        for year in sorted({m['pedagogical_year'] for m in self.modules.values()}):
+            previous = None
+            chain_ready = True
+            modules = sorted(((k, m) for k, m in self.modules.items()
+                              if m['pedagogical_year'] == year), key=lambda pair: int(pair[0][1:]))
+            for module_id, m in modules:
+                completed = False
+                if module_id in confirmed_modules:
+                    completed = self.completion.state(user['id'], module_id)['status'] == 'completed'
+                locked = self.sequential and user['role'] == 'student' and not chain_ready
+                rows.append({'id': module_id, 'title': m['module_title'], 'year': year,
+                             'completed': completed, 'locked': locked, 'previous': previous})
+                chain_ready = chain_ready and completed
+                previous = module_id
+        return rows
+
+    def module_access(self, user, module_id):
+        self.module(module_id)
+        if self.sequential and user['role'] == 'student':
+            row = next(x for x in self.curriculum(user) if x['id'] == module_id)
+            if row['locked']:
+                raise ApiError(403, f"Модуль закрыт. Сначала завершите предыдущие модули: {row['previous']}.")
+
     def module_view(self, user, module_id):
+        self.module_access(user, module_id)
         m = self.module(module_id)
         teacher = user['role'] == 'teacher'
         if teacher:
@@ -139,8 +175,10 @@ class Pilot:
                 item.update(answer=c.get('answer', ''), sources=c.get('sources', []))
             cases.append(item)
         content = self.materials.view(m)
+        checks = self.completion._student_checks(user['id'], module_id)[0] if not teacher else []
+        progress = {'done': sum(int(c['ok']) for c in checks), 'total': len(checks)}
         return {'id': module_id, 'title': m['module_title'], 'year': m['pedagogical_year'],
-                'version': version, 'cases': cases, 'attempts': attempts,
+                'version': version, 'cases': cases, 'attempts': attempts, 'progress': progress,
                 'drafts': {k: v for k, v in self.store.drafts(user['id'], module_id, version).items()
                            if not k.startswith(PREFIX)} if not teacher else {},
                 'materials': content, 'opened': self.reading.get(user['id'], module_id, content['version']),
@@ -294,6 +332,28 @@ def serve_request(req, mutation):
             req.pilot.sessions.destroy(req.token())
             return req.respond(200, req.pilot.user(token), cookie=token)
         user = req.pilot.user(req.token())
+        if user['role'] == 'student' and req.pilot.sequential:
+            gate_module = None
+            if mutation and path in ('/api/answers', '/api/drafts', '/api/resources/open',
+                    '/api/quizzes/start', '/api/practice/drafts', '/api/practice/answers', '/api/completion/submit'):
+                gate_module = body.get('module')
+            if not mutation:
+                for prefix in ('/api/modules/', '/api/practice/', '/api/completion/'):
+                    candidate = path.removeprefix(prefix) if path.startswith(prefix) else ''
+                    if candidate in req.pilot.modules:
+                        gate_module = candidate
+            if path.startswith('/api/quizzes/') and (not mutation or path in ('/api/quizzes/save', '/api/quizzes/submit')):
+                quiz_id = body.get('id') if mutation else path.rsplit('/', 1)[1]
+                if isinstance(quiz_id, str):
+                    row = req.pilot.quiz.get(user['id'], quiz_id)
+                    if row:
+                        gate_module = row['module']
+            if not mutation and (path.startswith('/api/submissions/') or path.startswith('/api/practice/submissions/')):
+                row = req.pilot.store.get(int(path.rsplit('/', 1)[1]))
+                if row and row['student'] == user['id']:
+                    gate_module = row['module']
+            if isinstance(gate_module, str):
+                req.pilot.module_access(user, gate_module)
         if not mutation and path.startswith('/documents/'):
             module_id = path.removeprefix('/documents/')
             req.pilot.teacher(user, module_id)
@@ -309,8 +369,7 @@ def serve_request(req, mutation):
         if not mutation and path == '/api/session':
             return req.respond(200, user)
         if not mutation and path == '/api/modules':
-            return req.respond(200, [{'id': k, 'title': m['module_title'], 'year': m['pedagogical_year']}
-                                     for k, m in req.pilot.modules.items()])
+            return req.respond(200, req.pilot.curriculum(user))
         if not mutation and path.startswith('/api/modules/'):
             return req.respond(200, req.pilot.module_view(user, path.removeprefix('/api/modules/')))
         if not mutation and path == '/api/queue':
