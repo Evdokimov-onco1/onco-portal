@@ -27,7 +27,7 @@ APP_ENV = {
     'PILOT_DATA': str(APP_ROOT / 'data' / 'orp-data.json'),
 }
 # Only server-side auth/mail settings are read from the private configuration.
-for key in ('PILOT_AUTH_ENABLED', 'PILOT_AUTH_REGISTRATION', 'PILOT_MAIL_FROM',
+for key in ('PILOT_SEQUENTIAL_MODULES', 'PILOT_AUTH_ENABLED', 'PILOT_AUTH_REGISTRATION', 'PILOT_MAIL_FROM',
             'PILOT_SENDMAIL_PATH', 'PILOT_SMTP_HOST', 'PILOT_SMTP_PORT',
             'PILOT_SMTP_USER', 'PILOT_SMTP_PASSWORD'):
     if key in CONFIG:
