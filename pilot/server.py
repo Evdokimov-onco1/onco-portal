@@ -134,20 +134,18 @@ class Pilot:
                     'ON e.request_id=r.id WHERE r.student=? AND e.decision=?', (user['id'], 'confirmed'))}
             finally:
                 con.close()
-        for year in sorted({m['pedagogical_year'] for m in self.modules.values()}):
-            previous = None
-            chain_ready = True
-            modules = sorted(((k, m) for k, m in self.modules.items()
-                              if m['pedagogical_year'] == year), key=lambda pair: int(pair[0][1:]))
-            for module_id, m in modules:
-                completed = False
-                if module_id in confirmed_modules:
-                    completed = self.completion.state(user['id'], module_id)['status'] == 'completed'
-                locked = self.sequential and user['role'] == 'student' and not chain_ready
-                rows.append({'id': module_id, 'title': m['module_title'], 'year': year,
-                             'completed': completed, 'locked': locked, 'previous': previous})
-                chain_ready = chain_ready and completed
-                previous = module_id
+        ordered = sorted(self.modules.items(), key=lambda pair: int(pair[0][1:]))
+        completed_ids = {module_id for module_id in confirmed_modules
+                         if self.completion.state(user['id'], module_id)['status'] == 'completed'}
+        first_year = [module_id for module_id, m in ordered if str(m['pedagogical_year']) == '1']
+        final_first_year = first_year[-1] if first_year else None
+        second_year_ready = final_first_year is not None and final_first_year in completed_ids
+        for module_id, m in ordered:
+            year = m['pedagogical_year']
+            locked = self.sequential and user['role'] == 'student' and str(year) == '2' and not second_year_ready
+            rows.append({'id': module_id, 'title': m['module_title'], 'year': year,
+                         'completed': module_id in completed_ids, 'locked': locked,
+                         'previous': final_first_year if str(year) == '2' else None})
         return rows
 
     def module_access(self, user, module_id):
@@ -155,7 +153,7 @@ class Pilot:
         if self.sequential and user['role'] == 'student':
             row = next(x for x in self.curriculum(user) if x['id'] == module_id)
             if row['locked']:
-                raise ApiError(403, f"Модуль закрыт. Сначала завершите предыдущие модули: {row['previous']}.")
+                raise ApiError(403, f"Второй год закрыт. Сначала получите итоговый зачёт последнего модуля первого года: {row['previous']}.")
 
     def module_view(self, user, module_id):
         self.module_access(user, module_id)

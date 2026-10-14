@@ -30,3 +30,12 @@ assert.deepEqual(Array.from(vm.runInContext("caseAnswerFields('Старый че
 assert.equal(vm.runInContext("answerText(JSON.stringify({schema:'onco-case-answers/v1',questions:['Почему?'],answers:['Потому']}))",context),'Вопрос 1. Почему?\nОтвет: Потому');
 vm.runInContext("state.modules=[{id:'M01',title:'Первый',year:1,locked:false},{id:'M02',title:'Второй',year:1,locked:true,previous:'M01'}]",context);
 const lockedMarkup=vm.runInContext('catalogCards(1)',context);assert.match(lockedMarkup,/aria-disabled="true"/);assert.doesNotMatch(lockedMarkup,/href="[^"]*module=M02/);
+
+vm.runInContext("state.modules=[{id:'M60',title:'Последний первого года',year:1,locked:false},{id:'M61',title:'Второй год',year:2,locked:true,previous:'M60'}];location.search='?year=2';studentCatalog();",context);
+assert.match(element('#app').innerHTML,/🔒 2 год/);
+assert.match(element('#yearProgress').innerHTML,/Второй год закрыт/);
+assert.match(element('#moduleGrid').innerHTML,/После зачёта M60/);
+assert.doesNotMatch(element('#moduleGrid').innerHTML,/href=/);
+vm.runInContext("location.search='?year=1';studentCatalog();",context);
+assert.match(element('#yearProgress').innerHTML,/Все модули первого года доступны в любом порядке/);
+assert.match(element('#moduleGrid').innerHTML,/module=M60/);

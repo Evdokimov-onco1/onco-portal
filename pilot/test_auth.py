@@ -161,7 +161,7 @@ class AuthTests(unittest.TestCase):
             self.assertEqual(st, 200)
             self.assertEqual(data['role'], 'student')
 
-    def test_unverified_resend_preserves_name(self):
+    def test_unverified_resend_preserves_name_and_delivered_link(self):
         with tempfile.TemporaryDirectory() as td:
             pilot, sink, store, _, _ = make_auth_stack(Path(td))
             run_post(pilot, '/api/auth/register', {'email': 'r@x.ru', 'name': 'Истинное Имя'})
@@ -172,9 +172,9 @@ class AuthTests(unittest.TestCase):
             old = extract_token(sink[:1])
             new = extract_token(sink)
             st, _, _, _ = run_post(pilot, '/api/auth/verify', {'token': old, 'password': 'password-twelve'})
-            self.assertEqual(st, 400)
-            st, _, _, _ = run_post(pilot, '/api/auth/verify', {'token': new, 'password': 'password-twelve'})
             self.assertEqual(st, 200)
+            st, _, _, _ = run_post(pilot, '/api/auth/verify', {'token': new, 'password': 'password-twelve'})
+            self.assertEqual(st, 400)
 
     def test_register_mail_fail_then_resend(self):
         with tempfile.TemporaryDirectory() as td:
