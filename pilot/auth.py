@@ -41,8 +41,9 @@ RATE_WINDOW = 900
 
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 _UNIFORM_OK = (
-    'Если указанный адрес можно использовать, на него отправлено письмо с инструкцией. '
-    'Проверьте почту (включая папку «Спам»).'
+    'Если указанный адрес можно использовать, письмо с инструкцией передано почтовому серверу. '
+    'Доставка может занять несколько минут. Если письма нет, запросите ссылку повторно. '
+    'Если вы уже регистрировались, попробуйте войти или восстановить пароль.'
 )
 _VERIFY_OK = 'Пароль установлен. Теперь можно войти в кабинет.'
 _RESET_OK = 'Пароль обновлён. Войдите с новым паролем.'
@@ -154,6 +155,17 @@ class AccountStore:
                     bucket TEXT PRIMARY KEY,
                     count INTEGER NOT NULL,
                     window_start REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS mail_events(
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    started REAL NOT NULL,
+                    finished REAL,
+                    status TEXT NOT NULL,
+                    category TEXT,
+                    smtp_code INTEGER,
+                    message_id TEXT
                 );
             ''')
 
@@ -293,12 +305,43 @@ class AccountStore:
         token = secrets.token_urlsafe(32)
         th = _hash_token(token)
         exp = time.time() + TOKEN_TTL
-        con.execute('DELETE FROM tokens WHERE user_id=? AND kind=?', (user_id, 'verify'))
+        con.execute('DELETE FROM tokens WHERE user_id=? AND expires<?', (user_id, time.time()))
         con.execute(
             'INSERT INTO tokens(token_hash,user_id,kind,expires,consumed) VALUES(?,?,?,?,0)',
             (th, user_id, 'verify', exp),
         )
         return token
+
+    def begin_mail(self, kind, token):
+        """Audit contains no addresses, message bodies, credentials or token values."""
+        event_id = str(uuid.uuid4())
+        with self._connect() as con:
+            row = con.execute('SELECT user_id FROM tokens WHERE token_hash=?', (_hash_token(token),)).fetchone()
+            if not row:
+                raise ApiError(503, 'Не удалось подготовить письмо. Попробуйте ещё раз.')
+            con.execute('INSERT INTO mail_events(id,user_id,kind,started,status) VALUES(?,?,?,?,?)',
+                        (event_id, row['user_id'], kind, time.time(), 'sending'))
+        return event_id
+
+    def finish_mail(self, event_id, token, error=None, message_id=None):
+        with self._connect() as con:
+            con.execute('BEGIN IMMEDIATE')
+            th = _hash_token(token)
+            row = con.execute('SELECT user_id,kind,rowid AS sequence FROM tokens WHERE token_hash=?', (th,)).fetchone()
+            if error is not None:
+                # A failed resend must never revoke an earlier working link.
+                con.execute('DELETE FROM tokens WHERE token_hash=?', (th,))
+            # SMTP acceptance does not prove delivery. Keep previous links until
+            # expiry or successful verification (which consumes all verify links).
+            category = getattr(error, 'category', 'transport') if error else None
+            if error is not None and category not in ('transport','recipient','authentication','smtp','connection'):
+                category = 'transport'
+            con.execute('UPDATE mail_events SET finished=?,status=?,category=?,smtp_code=?,message_id=? WHERE id=?',
+                        (time.time(), 'failed' if error else 'accepted', category,
+                         getattr(error, 'code', None) if error else None,
+                         message_id if isinstance(message_id, str) and len(message_id)<256 else None, event_id))
+            # Keep a bounded operational history, separate from course records.
+            con.execute('DELETE FROM mail_events WHERE started<?', (time.time()-90*86400,))
 
     def register(self, email, name, client_ip):
         self.rate_limit_register(client_ip, email if isinstance(email, str) else None)
@@ -476,7 +519,13 @@ class AuthService:
                 f'Чтобы задать новый пароль, откройте ссылку:\n{url}\n\n'
                 f'Если вы не запрашивали сброс, проигнорируйте это письмо.\n'
             )
-        self.mailer.send(email, subject, body)
+        event_id = self.store.begin_mail(kind, token)
+        try:
+            message_id = self.mailer.send(email, subject, body)
+        except MailError as error:
+            self.store.finish_mail(event_id, token, error=error)
+            raise
+        self.store.finish_mail(event_id, token, message_id=message_id)
 
     def register(self, body, client_ip):
         if not self.registration_enabled:
