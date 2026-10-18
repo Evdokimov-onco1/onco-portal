@@ -1,5 +1,5 @@
 'use strict';
-const completionPerson=id=>({'student-a':'Ординатор А','student-b':'Ординатор Б','teacher':'Преподаватель'}[id]||id);
+const completionPerson=id=>(state.teacherNames?.[id]||{'student-a':'Ординатор А','student-b':'Ординатор Б','teacher':'Преподаватель'}[id]||id);
 const checkPanel={lecture:'materials',source:'materials',cases:'cases',seminar:'seminar',tumor_board:'practice',quiz:'quiz'};
 const teacherCheckTab={cases:'answers',seminar:'practice',tumor_board:'practice'};
 const teacherCheckTabLabel={answers:'Клинические ответы',practice:'Логбук практики'};
@@ -112,7 +112,7 @@ async function loadCompletion(){
  }
 }
 function teacherNavMarkup(){
- const tabs=[['answers','Клинические ответы'],['practice','Логбук практики'],['completion','Завершение модуля']];
+ const tabs=[['students','Ординаторы'],['answers','Клинические ответы'],['practice','Логбук практики'],['completion','Завершение модуля']];
  return `<nav class="module-nav teacher-nav" aria-label="Разделы кабинета преподавателя">${tabs.map(([id,t])=>`<button type="button" data-teacher-tab="${id}" ${state.teacherTab===id?'class="selected" aria-current="page"':''}>${t}</button>`).join('')}</nav>`;
 }
 function wireTeacherNav(){

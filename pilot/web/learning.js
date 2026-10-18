@@ -191,26 +191,10 @@ function student(){
  ({materials:materialsPanel,quiz:quizPanel,seminar:seminarPanel,practice:practicePanel,tools:toolsPanel,progress:progressPanel}[state.panel])();
 }
 async function teacher(){
- if(!['answers','practice','completion'].includes(state.teacherTab))state.teacherTab='answers';
+ if(!['students','answers','practice','completion'].includes(state.teacherTab))state.teacherTab='students';
+ if(state.teacherTab==='students'){await teacherStudentsView();return;}
  if(state.teacherTab==='completion'){await teacherCompletionView();return;}
- if(state.teacherTab==='practice'){
-  const loadId=nextCompletionLoadId(),userId=state.user?.id;
-  app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Логбук практики</h1><p class="muted intro">Семинар, OSCE и Tumor Board. OSCE необязателен и не входит в условия итогового зачёта модуля.</p>${teacherNavMarkup()}<div id="teacher-practice-slot"></div>`;
-  wireTeacherNav();
-  const slot=document.querySelector('#teacher-practice-slot');
-  let rows=null,err='';
-  try{rows=await api('/api/practice/queue');}catch(e){err=e.message||'Сервис логбука недоступен.';}
-  if(!shouldApplyTeacherApp(loadId,userId,'practice'))return;
-  state.practiceQueue=rows||[];
-  const list=state.practiceQueue.map(r=>{
-   const e=r.logbook?.length?r.logbook[r.logbook.length-1]:null;
-   const badge=e?`<span class="badge ${esc(e.decision)}">${esc(pDecLabel[e.decision]||e.decision)}</span>`:'<span class="badge">На проверке</span>';
-   return `<button class="queue-item" data-prev="${r.id}"><span class="status-row">${badge}${r.stale?'<span class="badge warn">не та редакция</span>':''}<small>${esc(personName(r.student))} · ${esc(r.module)} · ${esc(pKindLabel[r.kind]||'Практика')} · ${stamp(r.created_at)}</small></span><strong>${esc(r.title||r.case)}</strong><span>${esc((r.answer||'').slice(0,150))}${(r.answer||'').length>150?'…':''}</span></button>`;
-  }).join('');
-  slot.innerHTML=`<section class="paper teacher-practice"><h2>Очередь логбука</h2>${err?`<div class="locked">Логбук практики сейчас недоступен: ${esc(err)}</div>`:list||'<p class="muted">Отправленных ответов по практике пока нет.</p>'}</section>`;
-  slot.querySelectorAll('[data-prev]').forEach(b=>b.addEventListener('click',()=>action(b,()=>practiceReview(Number(b.dataset.prev)))));
-  return;
- }
+ if(state.teacherTab==='practice'){await teacherPracticeView();return;}
  await teacherAnswers();
  const loadId=state.completionLoadId,userId=state.user?.id;
  if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
@@ -218,7 +202,7 @@ async function teacher(){
  wireTeacherNav();
  const rows=await api('/api/test-results');
  if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
- app.insertAdjacentHTML('beforeend',`<section class="paper teacher-tests"><h2>Тестовые попытки ординаторов</h2><p class="muted">Полные попытки: результат рассчитан на сервере по всем вопросам. Итоговый зачёт модуля — на вкладке «Завершение модуля».</p>${rows.length?rows.map(q=>`<details class="reading-group"><summary>${esc(q.student==='student-a'?'Ординатор А':'Ординатор Б')} · ${esc(q.module)} · ${q.submitted_at?(q.passed?'зачтён':'не зачтён'):'в процессе'}${q.submitted_at?' · '+q.score+'/'+q.total:''}</summary>${q.submitted_at?quizResult(q):`<p>${Object.keys(q.answers).length} из ${q.total} ответов сохранено.</p>`}</details>`).join(''):'<p class="muted">Попыток пока нет. Они появятся после запуска теста ординатором.</p>'}</section>`);
+ app.insertAdjacentHTML('beforeend',`<section class="paper teacher-tests"><h2>Тестовые попытки ординаторов</h2><p class="muted">Полные попытки: результат рассчитан на сервере по всем вопросам. Итоговый зачёт модуля — на вкладке «Завершение модуля».</p>${rows.length?rows.map(q=>`<details class="reading-group"><summary>${esc(q.student_name||q.student)} · ${esc(q.module)} · ${q.submitted_at?(q.passed?'зачтён':'не зачтён'):'в процессе'}${q.submitted_at?' · '+q.score+'/'+q.total:''}</summary>${q.submitted_at?quizResult(q):`<p>${Object.keys(q.answers).length} из ${q.total} ответов сохранено.</p>`}</details>`).join(''):'<p class="muted">Попыток пока нет. Они появятся после запуска теста ординатором.</p>'}</section>`);
 }
 if(typeof module!=='undefined'&&module.exports){module.exports={formatTimecode,parseTimecode,videoFeedbackPayload,suggestedVideoMarkup,wireSuggestedPlayer,wireVideoFeedback};}
 start();

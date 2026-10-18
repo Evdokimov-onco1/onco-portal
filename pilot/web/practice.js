@@ -4,7 +4,7 @@ const pKindLabel={seminar:'Семинар',osce:'OSCE',tumor_board:'Tumor Board'
 const pDecLabel={discussed:'Обсуждено на семинаре',accepted:'Принято',returned:'На доработку'};
 const pDecBtn={discussed:'Отметить обсуждение',accepted:'Принять работу',returned:'Вернуть на доработку'};
 const pDecisions={seminar:['discussed','returned'],osce:['accepted','returned'],tumor_board:['accepted','returned']};
-const personName=id=>({'student-a':'Ординатор А','student-b':'Ординатор Б','teacher':'Преподаватель'}[id]||id);
+const personName=id=>state.teacherNames?.[id]||({'student-a':'Ординатор А','student-b':'Ординатор Б','teacher':'Преподаватель'}[id]||id);
 function localToday(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 const pLastEv=a=>{const r=(a.attempts||[])[0];return r?.logbook?.length?r.logbook[r.logbook.length-1]:null;};
 function invalidatePracticeLoads(){state.practiceLoadId=(state.practiceLoadId||0)+1;state.practice=null;state.practiceLoading=false;}
@@ -143,8 +143,51 @@ async function teacherPracticeQueue(){
  app.insertAdjacentHTML('beforeend',`<section class="paper teacher-practice"><h2>Логбук практики: семинар · OSCE · Tumor Board</h2><p class="muted">Письменная подготовка ординаторов. Зафиксируйте решение, дату занятия и комментарий; баллы берутся из чек-листа задания на сервере.</p>${err?`<div class="locked">Логбук практики сейчас недоступен: ${esc(err)}</div>`:list||'<p class="muted">Отправленных ответов по практике пока нет.</p>'}</section>`);
  document.querySelectorAll('[data-prev]').forEach(b=>b.addEventListener('click',()=>action(b,()=>practiceReview(Number(b.dataset.prev)))));
 }
+function practiceQueueRows(rows,query,moduleId,status){
+ const latestRows=queueLatestRows(rows);
+ const q=queueNorm(query);
+ return latestRows.filter(r=>{
+  const decision=r.logbook?.at(-1)?.decision;
+  return (status==='all'||(status==='pending'?!decision:decision===status))&&
+   (!moduleId||moduleId==='all'||r.module===moduleId)&&
+   (!q||queueNorm(`${r.student_name||''} ${r.student} ${r.module} ${moduleTitle(r.module)}`).includes(q));
+ }).sort((a,b)=>a.id-b.id);
+}
+async function teacherPracticeView(){
+ const loadId=nextCompletionLoadId(),userId=state.user?.id;
+ const valid=()=>shouldApplyTeacherApp(loadId,userId,'practice');
+ const shell=`<div class="eyebrow">Кабинет преподавателя</div><h1>Логбук практики</h1><p class="muted intro">Семинар, OSCE и Tumor Board. OSCE необязателен и не входит в условия итогового зачёта модуля.</p>${teacherNavMarkup()}`;
+ app.innerHTML=shell+'<section class="paper" role="status">Загружаем работы…</section>';wireTeacherNav();
+ let rows;
+ try{rows=await api('/api/practice/queue');}
+ catch(e){if(!valid())return;app.innerHTML=shell+`<section class="paper"><p role="alert">Не удалось загрузить логбук: ${esc(e.message)}</p><button id="practiceQueueRetry" type="button">Повторить</button></section>`;wireTeacherNav();document.querySelector('#practiceQueueRetry').addEventListener('click',e=>action(e.target,teacherPracticeView));return;}
+ if(!valid())return;
+ state.practiceQueue=rows;
+ const mods=[...new Set(rows.map(r=>r.module))].sort();
+ state.practiceFilter=state.practiceFilter||'pending';state.practiceModule=state.practiceModule||'all';
+ if(!mods.includes(state.practiceModule))state.practiceModule='all';
+ app.innerHTML=shell+`<section class="paper teacher-practice"><div class="queue-controls"><label class="queue-search">Поиск<input type="search" id="practiceSearch" autocomplete="off" placeholder="Ординатор или модуль"></label><label>Модуль<select id="practiceModule"><option value="all">Все модули</option>${mods.map(id=>`<option value="${esc(id)}">${esc(id+' · '+moduleTitle(id))}</option>`).join('')}</select></label><label>Статус<select id="practiceFilter"><option value="pending">На проверке</option><option value="returned">На доработке</option><option value="accepted">Принято</option><option value="discussed">Обсуждено</option><option value="all">Все</option></select></label><button id="practiceReset" type="button">Сбросить фильтры</button><button id="practiceRefresh" type="button">Обновить</button></div><p id="practiceCount" role="status" aria-live="polite"></p><div id="practiceResults"></div></section>`;
+ wireTeacherNav();
+ const search=document.querySelector('#practiceSearch'),mod=document.querySelector('#practiceModule'),filter=document.querySelector('#practiceFilter'),result=document.querySelector('#practiceResults');
+ search.value=state.practiceSearch||'';mod.value=state.practiceModule;filter.value=state.practiceFilter;
+ const update=()=>{
+  if(!valid())return;
+  const shown=practiceQueueRows(rows,state.practiceSearch,state.practiceModule,state.practiceFilter);
+  document.querySelector('#practiceCount').textContent=queueCountText(shown.length,queueLatestRows(rows).length);
+  result.innerHTML=shown.map(r=>{const ev=r.logbook?.at(-1);return `<button class="queue-item" data-prev="${r.id}"><span class="status-row"><span class="badge ${esc(ev?.decision||'')}">${esc(ev?pDecLabel[ev.decision]:'На проверке')}</span>${r.stale?'<span class="badge warn">Архивная редакция</span>':''}</span><strong>${esc(r.student_name||personName(r.student))} · ${esc(r.module)}</strong><span>${esc(r.title||r.case)} · ${esc(pKindLabel[r.kind]||'Практика')}</span><small>${stamp(r.created_at)}</small></button>`;}).join('')||`<p class="empty">${rows.length?'По заданным фильтрам ничего не найдено.':'Отправленных работ пока нет.'}</p>`;
+ };
+ search.addEventListener('input',()=>{state.practiceSearch=search.value;update();});
+ mod.addEventListener('change',()=>{state.practiceModule=mod.value;update();});
+ filter.addEventListener('change',()=>{state.practiceFilter=filter.value;update();});
+ document.querySelector('#practiceReset').addEventListener('click',()=>{state.practiceSearch='';state.practiceModule='all';state.practiceFilter='pending';search.value='';mod.value='all';filter.value='pending';update();});
+ document.querySelector('#practiceRefresh').addEventListener('click',e=>action(e.target,teacherPracticeView));
+ result.addEventListener('click',e=>{const b=e.target.closest('[data-prev]');if(b&&result.contains(b)&&valid())action(b,()=>practiceReview(Number(b.dataset.prev)));});
+ update();
+}
 async function practiceReview(id){
+ const loadId=nextCompletionLoadId(),userId=state.user?.id;
  const d=await api('/api/practice/submissions/'+id);
+ if(!shouldApplyTeacherApp(loadId,userId,'practice'))return;
  const row=d.row,a=d.activity||{},hist=d.history||[];
  const stale=row.stale===true||row.version!==d.current_version;
  const decs=pDecisions[a.kind]||['accepted','returned'];
@@ -161,7 +204,7 @@ async function practiceReview(id){
  const today=localToday();
  const form=stale?`<div class="locked"><strong>Проверка недоступна.</strong> Задание изменилось после отправки этого ответа: отправлен в редакции ${esc(row.version)}, текущая ${esc(d.current_version)}. Откройте актуальный ответ из очереди.</div>`:
   `<div class="separator"></div><label for="meetingDate">Дата занятия / проверки</label><input id="meetingDate" type="date" required min="2000-01-01" max="${today}" value="${today}">${rubricBlock}<label for="pcomment">Комментарий преподавателя</label><textarea id="pcomment" maxlength="10000" placeholder="Что зафиксировать в журнале…"></textarea><p class="help">При возврате укажите, что именно доработать.</p><div class="actions">${decs.map((x,i)=>`<button ${i===0?'class="primary" ':''}data-pdec="${x}">${pDecBtn[x]}</button>`).join('')}</div>`;
- app.innerHTML=`<button class="back" id="back">← К кабинету</button><div class="eyebrow">${esc(row.module)} · ${esc(personName(row.student))} · ${esc(pKindLabel[a.kind]||'Практика')}${esc(stage)}</div><h1>${esc(a.title||row.case)}</h1><section class="paper"><div class="status-row">${rowBadge}<span class="muted">Ответ №${row.id} · отправлен ${stamp(row.created_at)}</span></div>${prompts}${instr}<h3>Ответ ординатора</h3><div class="text">${esc(row.answer)}</div>${standard}${debrief}${form}<details class="history" open><summary>Все ответы по этой активности · ${hist.length}</summary>${hist.length?hist.map(pAttemptMarkup).join(''):'<p class="muted">Других ответов нет.</p>'}</details></section>`;
+ app.innerHTML=`<button class="back" id="back">← К кабинету</button><div class="eyebrow">${esc(row.module)} · ${esc(row.student_name||personName(row.student))} · ${esc(pKindLabel[a.kind]||'Практика')}${esc(stage)}</div><h1>${esc(a.title||row.case)}</h1><section class="paper"><div class="status-row">${rowBadge}<span class="muted">Ответ №${row.id} · отправлен ${stamp(row.created_at)}</span></div>${prompts}${instr}<h3>Ответ ординатора</h3><div class="text">${esc(row.answer)}</div>${standard}${debrief}${form}<details class="history" open><summary>Все ответы по этой активности · ${hist.length}</summary>${hist.length?hist.map(pAttemptMarkup).join(''):'<p class="muted">Других ответов нет.</p>'}</details></section>`;
  document.querySelector('#back').addEventListener('click',e=>{if(!safeLeave())return;state.dirty.delete('preview');state.teacherTab='practice';action(e.target,teacher);});
  if(stale)return;
  const dateEl=document.querySelector('#meetingDate'),comEl=document.querySelector('#pcomment');
@@ -188,6 +231,7 @@ async function practiceReview(id){
   const fp=JSON.stringify([id,decision,comment,meeting,marks]);
   if(!pending[fp])pending[fp]=crypto.randomUUID();
   await api('/api/practice/reviews',{submission_id:id,decision,comment,meeting_date:meeting,marks,key:pending[fp]});
+  if(!shouldApplyTeacherApp(loadId,userId,'practice'))return;
   state.dirty.delete('preview');
   await practiceReview(id);
   notify(decision==='discussed'?'Обсуждение отмечено в логбуке.':decision==='accepted'?'Работа принята и записана в логбук.':'Ответ возвращён с комментарием.');

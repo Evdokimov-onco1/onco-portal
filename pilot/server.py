@@ -10,7 +10,7 @@ import secrets
 import tempfile
 import threading
 import time
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 from pilot.store import Store
 from pilot.quiz import QuizStore
@@ -19,6 +19,7 @@ from pilot.logbook import Logbook
 from pilot.practice import PREFIX, ApiError, Practice
 from pilot.completion import Completion
 from pilot.session_store import MemorySessions
+from pilot.teacher import students_overview
 
 ROOT = Path(__file__).resolve().parents[1]
 USERS = {
@@ -294,6 +295,7 @@ def serve_request(req, mutation):
                       '/learning.js': ('learning.js', 'text/javascript; charset=utf-8'),
                       '/practice.js': ('practice.js', 'text/javascript; charset=utf-8'),
                       '/completion.js': ('completion.js', 'text/javascript; charset=utf-8'),
+                      '/teacher-students.js': ('teacher-students.js', 'text/javascript; charset=utf-8'),
                       '/style.css': ('style.css', 'text/css; charset=utf-8')}
             if path in assets:
                 name, mime = assets[path]
@@ -370,6 +372,9 @@ def serve_request(req, mutation):
             return req.respond(200, req.pilot.curriculum(user))
         if not mutation and path.startswith('/api/modules/'):
             return req.respond(200, req.pilot.module_view(user, path.removeprefix('/api/modules/')))
+        if not mutation and path == '/api/teacher/students':
+            module_id = parse_qs(urlsplit(req.path).query, keep_blank_values=True).get('module', [None])[0]
+            return req.respond(200, students_overview(req.pilot, user, module_id))
         if not mutation and path == '/api/queue':
             if user['role'] != 'teacher':
                 raise ApiError(403, 'Очередь доступна преподавателю.')
@@ -380,9 +385,14 @@ def serve_request(req, mutation):
             return req.respond(200, rows)
         practice = req.pilot.practice
         if not mutation and path == '/api/practice/queue':
-            return req.respond(200, practice.queue(user))
+            rows = practice.queue(user)
+            for row in rows:
+                row['student_name'] = req.pilot.users.get(row['student'], {}).get('name', row['student'])
+            return req.respond(200, rows)
         if not mutation and path.startswith('/api/practice/submissions/'):
-            return req.respond(200, practice.submission(user, int(path.rsplit('/', 1)[1])))
+            detail = practice.submission(user, int(path.rsplit('/', 1)[1]))
+            detail['row']['student_name'] = req.pilot.users.get(detail['row']['student'], {}).get('name', detail['row']['student'])
+            return req.respond(200, detail)
         if not mutation and path.startswith('/api/practice/'):
             return req.respond(200, practice.view(user, path.removeprefix('/api/practice/')))
         routes = {'/api/practice/drafts': practice.draft, '/api/practice/answers': practice.answer,
@@ -397,6 +407,8 @@ def serve_request(req, mutation):
                 if req.pilot.users[student]['role'] == 'student':
                     for module_id in req.pilot.assignments.get(user['id'], set()):
                         result.extend(req.pilot.quiz.history(student, module_id))
+            for row in result:
+                row['student_name'] = req.pilot.users.get(row['student'], {}).get('name', row['student'])
             return req.respond(200, sorted(result, key=lambda r: r['created_at'], reverse=True))
         if not mutation and path.startswith('/api/quizzes/'):
             row = req.pilot.quiz.get(user['id'], path.rsplit('/', 1)[1])
