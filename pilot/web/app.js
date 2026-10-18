@@ -2,7 +2,7 @@
 const app = document.querySelector('#app');
 const identity = document.querySelector('#identity');
 const notice = document.querySelector('#notice');
-const state = {user:null, authConfig:{enabled:false,registration:false,hosted:false}, authView:'login', modules:[], module:null, caseId:'C1', edits:{}, dirty:new Set(), pending:{}, queue:[], filter:'pending', panel:new URLSearchParams(location.search).get('panel')||'materials', quiz:null, practice:null, sel:{}, practiceQueue:null, completionLoadId:0, practiceLoadId:0, teacherTab:null};
+const state = {user:null, authConfig:{enabled:false,registration:false,hosted:false}, authView:'login', modules:[], module:null, caseId:'C1', edits:{}, dirty:new Set(), pending:{}, queue:[], queueFilters:null, panel:new URLSearchParams(location.search).get('panel')||'materials', quiz:null, practice:null, sel:{}, practiceQueue:null, completionLoadId:0, practiceLoadId:0, teacherTab:null};
 const esc = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp = s => new Date(s).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'});
 const latest = a => a.reviews.length ? a.reviews[a.reviews.length-1] : null;
@@ -40,7 +40,7 @@ function parseAuthFragment(){
 function header(){
  const tag=state.authConfig.enabled?'': ' · демо';
  identity.innerHTML=state.user?`<span>${esc(state.user.name)}${tag}</span><button id="logout">Выйти</button>`:'';
- document.querySelector('#logout')?.addEventListener('click',e=>{if(!safeLeave())return;action(e.target,async()=>{nextCompletionLoadId();const was=state.user;await api('/api/logout',{});invalidatePracticeLoads();invalidateCompletionLoads();if(state.user!==was)return;state.user=null;state.teacherTab=null;state.teacherCompletionModule=null;state.teacherCompletionReview=null;state.dirty.clear();state.edits={};state.pending={};login();});});
+ document.querySelector('#logout')?.addEventListener('click',e=>{if(!safeLeave())return;action(e.target,async()=>{nextCompletionLoadId();const was=state.user;await api('/api/logout',{});invalidatePracticeLoads();invalidateCompletionLoads();if(state.user!==was)return;state.user=null;state.teacherTab=null;state.queueFilters=null;state.teacherStudentsModule=null;state.teacherStudentsSearch='';state.teacherStudentsStatus='all';state.teacherNames={};state.practiceSearch='';state.practiceModule='all';state.practiceFilter='pending';state.teacherCompletionModule=null;state.teacherCompletionReview=null;state.dirty.clear();state.edits={};state.pending={};login();});});
 }
 function showTokenPasswordForm(kind,token){
  header();
@@ -115,18 +115,67 @@ function studentCases(){
  document.querySelector('#saveDraft').addEventListener('click',e=>action(e.target,async()=>{const text=readCaseAnswers(questions);await api('/api/drafts',{module:m.id,case:c.id,version:m.version,text});m.drafts[c.id]=text;state.dirty.delete(c.id);notify('Черновик сохранён. Преподавателю он не отправлен.');}));
  document.querySelector('#answerForm').addEventListener('submit',e=>{e.preventDefault();action(e.submitter,async()=>{const text=readCaseAnswers(questions,true);if(!text)throw new Error('Напишите свой ответ перед отправкой.');const fingerprint=m.id+c.id+m.version+text;let p=state.pending[c.id];if(!p||p.fingerprint!==fingerprint)p=state.pending[c.id]={fingerprint,key:crypto.randomUUID()};const result=await api('/api/answers',{module:m.id,case:c.id,version:m.version,answer:text,key:p.key});state.dirty.delete(c.id);state.edits[c.id]='';delete state.pending[c.id];state.module=await api('/api/modules/'+m.id);student();notify(`Ответ №${result.id} сохранён и доступен преподавателю.`);});});
 }
+const QUEUE_FILTER_DEFAULTS={status:'pending',query:'',module:'all',sort:'oldest'};
+function queueFilters(){
+ const uid=state.user?.id||null;
+ if(!state.queueFilters||state.queueFilters.userId!==uid)state.queueFilters={...QUEUE_FILTER_DEFAULTS,userId:uid};
+ return state.queueFilters;
+}
+function resetQueueFilters(){state.queueFilters=null;}
+const queueNorm=v=>String(v??'').toLocaleLowerCase('ru').replace(/\s+/g,'');
+const moduleTitle=id=>state.modules.find(m=>m.id===id)?.title||id;
+function queueLatestRows(rows){
+ const seen=new Set(),out=[];
+ for(const a of rows||[]){const k=[a.student,a.module,a.case,a.version].join(':');if(seen.has(k))continue;seen.add(k);out.push(a);}
+ return out;
+}
+function queueSortValue(a){const t=Date.parse(a?.created_at);return Number.isFinite(t)?t:null;}
+function queueFilterRows(rows,f={}){
+ const status=f.status||'pending',mod=f.module||'all',sort=f.sort||'oldest';
+ const q=queueNorm(f.query);
+ return (rows||[]).filter(a=>{
+  if(status==='pending'?latest(a):status!=='all'&&latest(a)?.decision!==status)return false;
+  if(mod!=='all'&&a.module!==mod)return false;
+  return !q||queueNorm(`${a.student_name||''} ${a.student} ${a.module} ${moduleTitle(a.module)}`).includes(q);
+ }).sort((x,y)=>{const a=queueSortValue(x),b=queueSortValue(y);if(a===null||b===null)return a===b?0:a===null?1:-1;return sort==='newest'?b-a:a-b;});
+}
+const queueCountText=(visible,total)=>`Показано работ: ${visible} из ${total}`;
+function queueItemMarkup(a){
+ return `<button class="queue-item" data-review="${a.id}"><span class="status-row">${badge(a)}<small>${esc(a.student_name||a.student)} · ${esc(a.module)} · ${esc(a.case)} · ${stamp(a.created_at)}</small></span><strong>${esc(moduleTitle(a.module))}</strong><span>${esc(answerText(a.answer).slice(0,150))}${a.answer.length>150?'…':''}</span></button>`;
+}
+function queueResultsMarkup(rows,hasAny){
+ if(!hasAny)return '<div class="empty">Отправленных работ пока нет.<br>Новые работы появятся после отправки ординатором.</div>';
+ if(!rows.length)return '<div class="empty">По заданным условиям ничего не найдено.<br>Измените запрос или нажмите «Сбросить фильтры».</div>';
+ return rows.map(queueItemMarkup).join('');
+}
+function wireQueueReviewButtons(root){root.querySelectorAll('[data-review]').forEach(b=>b.addEventListener('click',()=>action(b,()=>review(Number(b.dataset.review)))));}
+function refreshQueueResults(latestCases){
+ const rows=queueFilterRows(latestCases,queueFilters());
+ const count=document.querySelector('#queueCount'),region=document.querySelector('#queueResults');
+ if(count)count.textContent=queueCountText(rows.length,latestCases.length);
+ if(region){region.innerHTML=queueResultsMarkup(rows,latestCases.length>0);wireQueueReviewButtons(region);}
+}
 async function teacherAnswers(){
  const loadId=nextCompletionLoadId(),userId=state.user?.id;
- state.queue=await api('/api/queue');
+ const loadedQueue=await api('/api/queue');
  if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;
- const latestCases=[];const seen=new Set();for(const a of state.queue){const k=[a.student,a.module,a.case,a.version].join(':');if(!seen.has(k)){seen.add(k);latestCases.push(a);}}
+ state.queue=loadedQueue;
+ const latestCases=queueLatestRows(state.queue);
  const pending=latestCases.filter(a=>!latest(a)).length;
- const filtered=state.filter==='all'?latestCases:latestCases.filter(a=>state.filter==='pending'?!latest(a):latest(a)?.decision===state.filter);
- app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Ответы ординаторов</h1><p class="muted intro">Проверьте рассуждение, оставьте комментарий и примите ответ либо верните его на доработку. Это оценка отдельной задачи; итоговый зачёт модуля здесь ещё не выставляется.</p><div class="metrics"><div><strong>${pending}</strong><span>ожидают проверки</span></div><div><strong>${state.queue.length}</strong><span>отправленных версий</span></div></div><section class="paper"><div class="queue-toolbar"><h2>Очередь проверки</h2><label>Показать <select id="queueFilter"><option value="pending">На проверке</option><option value="returned">На доработке</option><option value="accepted">Принятые</option><option value="all">Все ответы</option></select></label><button id="refresh">Обновить</button></div>${filtered.length?filtered.map(a=>`<button class="queue-item" data-review="${a.id}"><span class="status-row">${badge(a)}<small>${esc(a.student_name||a.student)} · ${esc(a.module)} · ${esc(a.case)} · ${stamp(a.created_at)}</small></span><strong>${esc(state.modules.find(m=>m.id===a.module)?.title||a.module)}</strong><span>${esc(answerText(a.answer).slice(0,150))}${a.answer.length>150?'…':''}</span></button>`).join(''):'<div class="empty">В этой категории пока нет ответов.<br>Новые работы появятся после отправки ординатором.</div>'}</section>`;
- document.querySelector('#queueFilter').value=state.filter;
- document.querySelector('#queueFilter').addEventListener('change',e=>{state.filter=e.target.value;action(e.target,teacher);});
+ const f=queueFilters();
+ const mods=[...new Set(latestCases.map(a=>a.module))].sort();
+ if(f.module!=='all'&&!mods.includes(f.module))f.module='all';
+ app.innerHTML=`<div class="eyebrow">Кабинет преподавателя</div><h1>Ответы ординаторов</h1><p class="muted intro">Проверьте рассуждение, оставьте комментарий и примите ответ либо верните его на доработку. Это оценка отдельной задачи; итоговый зачёт модуля здесь ещё не выставляется.</p><div class="metrics"><div><strong>${pending}</strong><span>ожидают проверки</span></div><div><strong>${state.queue.length}</strong><span>отправленных версий</span></div></div><section class="paper"><div class="queue-toolbar"><h2>Очередь проверки</h2><label>Показать <select id="queueFilter"><option value="pending">На проверке</option><option value="returned">На доработке</option><option value="accepted">Принятые</option><option value="all">Все ответы</option></select></label><button id="refresh">Обновить</button></div><div class="queue-controls"><label class="queue-search">Поиск<input type="search" id="queueSearch" autocomplete="off" placeholder="Ординатор или модуль"></label><label>Модуль <select id="queueModule"><option value="all">Все модули</option>${mods.map(id=>`<option value="${esc(id)}">${esc(id+' · '+moduleTitle(id))}</option>`).join('')}</select></label><label>Сортировка <select id="queueSort"><option value="oldest">Сначала ждут дольше</option><option value="newest">Сначала новые</option></select></label><button type="button" id="queueReset">Сбросить фильтры</button></div><p class="queue-count" id="queueCount" role="status" aria-live="polite"></p><div id="queueResults"></div></section>`;
+ const statusEl=document.querySelector('#queueFilter'),moduleEl=document.querySelector('#queueModule'),sortEl=document.querySelector('#queueSort'),searchEl=document.querySelector('#queueSearch');
+ statusEl.value=f.status;moduleEl.value=f.module;sortEl.value=f.sort;searchEl.value=f.query;
+ const sync=()=>{if(shouldApplyTeacherApp(loadId,userId,'answers'))refreshQueueResults(latestCases);};
+ statusEl.addEventListener('change',e=>{queueFilters().status=e.target.value;sync();});
+ moduleEl.addEventListener('change',e=>{queueFilters().module=e.target.value;sync();});
+ sortEl.addEventListener('change',e=>{queueFilters().sort=e.target.value;sync();});
+ searchEl.addEventListener('input',()=>{queueFilters().query=searchEl.value;sync();});
+ document.querySelector('#queueReset').addEventListener('click',()=>{resetQueueFilters();const nf=queueFilters();statusEl.value=nf.status;moduleEl.value=nf.module;sortEl.value=nf.sort;searchEl.value=nf.query;sync();});
  document.querySelector('#refresh').addEventListener('click',e=>action(e.target,teacher));
- document.querySelectorAll('[data-review]').forEach(b=>b.addEventListener('click',()=>action(b,()=>review(Number(b.dataset.review)))));
+ refreshQueueResults(latestCases);
 }
 async function review(id){
  const loadId=state.completionLoadId,userId=state.user?.id,tab=state.teacherTab;
@@ -137,7 +186,7 @@ async function review(id){
  document.querySelector('#comment').addEventListener('input',()=>state.dirty.add('review'));
  document.querySelector('#back').addEventListener('click',e=>{if(!safeLeave())return;state.dirty.clear();state.teacherTab='answers';action(e.target,teacher);});
  const pending={};
- document.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>action(b,async()=>{const comment=document.querySelector('#comment').value.trim(),decision=b.dataset.decision;if(decision==='returned'&&!comment)throw new Error('Укажите, что нужно доработать.');const fp=decision+comment;if(!pending[fp])pending[fp]=crypto.randomUUID();await api('/api/reviews',{submission_id:id,decision,comment,key:pending[fp]});state.dirty.clear();await teacher();notify(decision==='accepted'?'Ответ принят. Ординатор увидит отметку в своём кабинете.':'Ответ возвращён с комментарием. История сохранена.');})));
+ document.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>action(b,async()=>{const comment=document.querySelector('#comment').value.trim(),decision=b.dataset.decision;if(decision==='returned'&&!comment)throw new Error('Укажите, что нужно доработать.');const fp=decision+comment;if(!pending[fp])pending[fp]=crypto.randomUUID();await api('/api/reviews',{submission_id:id,decision,comment,key:pending[fp]});if(!shouldApplyTeacherApp(loadId,userId,'answers'))return;state.dirty.clear();await teacher();notify(decision==='accepted'?'Ответ принят. Ординатор увидит отметку в своём кабинете.':'Ответ возвращён с комментарием. История сохранена.');})));
 }
 function applyAuthDeepLink(){
  const p=new URLSearchParams(location.search).get('auth');
